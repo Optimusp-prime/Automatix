@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #1 — DFS iterative and recursive (VERIFIED)
+Current feature: #2 — BFS (VERIFIED)
 
-Next planned feature: #2 — BFS (not started)
+Next planned feature: #3 — Accessible states (not started)
 
-Current phase: DFS implemented and validated; awaiting the next feature
+Current phase: BFS implemented and validated; awaiting the next feature
 
 ## Infrastructure
 
@@ -56,7 +56,7 @@ confirms their names and contracts.
 | # | Requirement | Planned public API | Layer / Mixin | Status | Tests | Notes |
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
 | 1 | DFS iterative and recursive | `dfs(start_state=<private sentinel>, *, recursive=False)` | `TraversalMixin` via `ExtendedFA`, `fa/fa_mixins/` | VERIFIED | `tests/fa/test_traversal.py` | Iterative default; recursive variant; DFA/NFA/GNFA; explicit None is a state; ADR-0004 |
-| 2 | BFS | TBD | TBD | TODO | — | — |
+| 2 | BFS | `bfs(start_state=<private sentinel>)` | `TraversalMixin` | VERIFIED | `tests/fa/test_traversal.py` | Level-order discovery with deque; DFA/NFA/GNFA; reuses ADR-0004 |
 | 3 | Accessible states | TBD | TBD | TODO | — | — |
 | 4 | Test whether a state is accessible | TBD | TBD | TODO | — | — |
 | 5 | Coaccessible states | TBD | TBD | TODO | — | — |
@@ -175,4 +175,52 @@ confirms their names and contracts.
   component. Automata must satisfy their upstream structural invariants.
   Reference-extension documentation was available as user-supplied excerpts,
   not as a separate full document in the workspace.
+- **Git commit:** pending.
+
+## #2 — BFS
+
+- **Specification:** explore reachable states level by level using a queue.
+  Return a fresh discovery-order list with the selected start first and each
+  reachable state exactly once; omit unreachable states and terminate on cycles.
+- **Design decisions:** reuse ADR-0004, `TraversalMixin`, `_build_successors`,
+  and the existing private start sentinel. The supplied reference excerpt
+  confirms BFS starts at the initial state or a given state. Upstream
+  `get_reachable_nodes` returns a set, so it cannot supply the required ordered
+  list. No upstream `bfs` name collision was found. No new durable architecture
+  decision, public graph API, or ADR is needed; DFS is not refactored.
+- **Implementation:** `fa/fa_mixins/traversal.py` uses `collections.deque` and
+  `popleft()`. Mark states as discovered when enqueuing them. Build adjacency
+  once, using the existing common helper, and keep all working data local.
+  There is no cache, mutation of self, or DFA/NFA/GNFA-specific branch.
+- **Public API:** `bfs(start_state=<private sentinel>) -> list[FAStateT]`.
+  `bfs()` uses `initial_state`; `bfs(None)` selects the real state `None`.
+  Absent and unhashable starts raise upstream `InvalidStateError`, using the
+  same contract as DFS. No recursive parameter is provided. Discovery order
+  is nondecreasing graph distance; ties follow the existing neighbor order.
+  Every emitted transition, including epsilon transitions, counts as one edge.
+- **Tests:** 13 new test functions, 39 cases after parametrization, in
+  `tests/fa/test_traversal.py`. Cover true level order distinct from both DFS
+  variants, full/partial DFA, NFA multiple destinations and epsilon edges,
+  GNFA regex/epsilon/absent edges, default/explicit/None starts, invalid and
+  unhashable starts, singleton states, cycles, unreachable states, repeated
+  edges, heterogeneous states, list results, immutability, fresh results,
+  and a single transition scan. Full suite: **123 passed**, including all
+  78 DFS cases and the six structural cases; one existing `pydub/audioop`
+  deprecation warning. The same strict mypy check as for #1 passes on the
+  package and traversal tests (14 source files). `git diff --check` is clean.
+- **Complexity:** adjacency construction takes O(|Q| + T) time and
+  O(|Q| + |E|) space, where Q contains all states, E the emitted transitions
+  including parallel edges, and T is the cost of exhausting `iter_transitions`.
+  BFS then takes O(|Q_reached| + |E_reached|) time and O(|Q_reached|) additional
+  space. Overall: O(|Q| + T) time and O(|Q| + |E|) space, assuming constant-time
+  hashing/equality. T includes NFA empty target-set entries and GNFA stored
+  `None` entries; a dense GNFA may require quadratic scanning.
+- **Related requirements:** implements #2 only, reusing the foundation of #1.
+  Possible future users #3, #4 and #17 remain TODO and are not implemented.
+- **ADR reference:** [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md),
+  reused without modification. No new ADR created.
+- **Known limitations:** adjacency is built globally even for a small reachable
+  component. Ordering within a level depends on the upstream transition stream
+  and is not guaranteed lexical or stable across processes. Automata must
+  satisfy their upstream structural invariants.
 - **Git commit:** pending.

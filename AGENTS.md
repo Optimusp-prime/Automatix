@@ -72,27 +72,32 @@ Never guess an automata-lib API.
 
 Inspect the actual 9.2.0 source before relying on an upstream method.
 
-## 2.3 automata_extensions reference documentation
+## 2.3 Professor-provided automata_extensions reference documentation
 
-The professor-provided automata_extensions documentation is an important
-implementation reference.
+A professor-provided reference document exists for a more mature
+`automata_extensions` implementation.
 
-It contains implementations and examples that were executed and verified.
+Codex does NOT have direct access to that document.
 
-Use it to understand:
+Relevant information from it will be extracted and included explicitly in
+feature prompts when needed.
 
-- appropriate mixin decomposition;
-- known API naming decisions;
-- known upstream name collisions;
-- known implementation pitfalls;
-- expected behavior;
-- sensible dependency relationships between algorithms;
-- already discovered compatibility problems.
+Such prompt-provided information may include:
 
-However, do not blindly copy code or architecture.
+- reference mixin organization;
+- documented public method names;
+- observed return values;
+- known naming collisions;
+- known compatibility problems;
+- previously tested behavior;
+- dependency relationships between algorithms.
 
-First verify that it respects the project specification and the actual
-automata-lib 9.2.0 API.
+Treat this information as implementation guidance, not as a replacement for:
+
+1. the professor's project specification;
+2. the actual automata-lib 9.2.0 source code.
+
+Never claim to have read or inspected the unavailable reference document.
 
 
 # 3. Fixed architectural decisions
@@ -271,23 +276,26 @@ Reuse upstream functionality where appropriate.
 
 Do not reimplement existing behavior without a reason.
 
-## 5.3 Reference implementation
+## 5.3 Reference implementation information
 
-Inspect the professor-provided automata_extensions documentation for the
-same feature.
+Review any professor-reference information explicitly included in the
+current feature prompt.
 
-Determine:
+Determine from that supplied information:
 
-- the documented public method name;
-- its mixin;
-- its return type;
-- related helper methods;
+- documented public method names;
+- suggested mixin placement;
+- return types;
+- helper relationships;
 - known name collisions;
-- known bugs or compatibility issues;
+- known compatibility issues;
 - relationships with later algorithms.
 
-Use this information to avoid rediscovering already known architectural
-problems.
+Do not assume access to source documents that are not present in the
+repository.
+
+If important reference information is required but absent from the prompt,
+ask for it rather than inventing it.
 
 ## 5.4 Dependency analysis
 

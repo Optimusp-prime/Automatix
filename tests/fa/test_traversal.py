@@ -1,4 +1,4 @@
-"""DFS contracts across upstream representations, without arbitrary sorting."""
+"""Traversal contracts across representations, without arbitrary sorting."""
 
 from copy import deepcopy
 import sys
@@ -321,3 +321,199 @@ def test_default_is_iterative_and_recursive_is_real() -> None:
         dfa.dfs(recursive=True)
     assert sys.getrecursionlimit() == limit
     assert dfa.dfs() == list(range(size))
+
+
+def test_bfs_discovers_by_level(automaton: ExtendedFA) -> None:
+    """Reach both children before grandchildren, unlike either DFS."""
+    result = automaton.bfs()
+    assert isinstance(result, list)
+    assert result[0] == automaton.initial_state
+    assert set(result[1:3]) == {"a", "b"}
+    assert set(result[3:]) == {"c", "f"}
+    assert len(result) == len(set(result)) == 5
+    assert "unreachable" not in result
+    assert result != automaton.dfs()
+    assert result != automaton.dfs(recursive=True)
+
+
+@pytest.mark.parametrize(
+    ("start", "expected"),
+    [
+        ("a", ["a", "c", "f"]),
+        ("f", ["f"]),
+        ("unreachable", ["unreachable"]),
+    ],
+)
+def test_bfs_explicit_start(
+    automaton: ExtendedFA, start: str, expected: list[str]
+) -> None:
+    """Traverse only the selected component, including sinks and self-loops."""
+    assert automaton.bfs(start_state=start) == expected
+
+
+@pytest.mark.parametrize("invalid", ["absent", None, ["unhashable"]])
+def test_bfs_invalid_start(automaton: ExtendedFA, invalid: FAStateT) -> None:
+    """BFS must use exactly the same error contract as DFS."""
+    with pytest.raises(InvalidStateError) as bfs_error:
+        automaton.bfs(invalid)
+    with pytest.raises(InvalidStateError) as dfs_error:
+        automaton.dfs(invalid)
+    assert str(bfs_error.value) == str(dfs_error.value)
+
+
+def test_bfs_complete_dfa_neighbor_order() -> None:
+    """Break ties by transition-stream order, never lexical state order."""
+    dfa = ExtendedDFA(
+        states={"s", "z", "a", "deep"},
+        input_symbols={"0", "1"},
+        transitions={
+            "s": {"0": "z", "1": "a"},
+            "z": {"0": "deep", "1": "deep"},
+            "a": {"0": "deep", "1": "deep"},
+            "deep": {"0": "s", "1": "deep"},
+        },
+        initial_state="s",
+        final_states={"deep"},
+    )
+    assert dfa.bfs() == ["s", "z", "a", "deep"]
+
+
+@pytest.mark.parametrize("with_loop", [False, True])
+def test_bfs_single_state(with_loop: bool) -> None:
+    """Visit a singleton once even with a self-loop or an empty language."""
+    dfa = ExtendedDFA(
+        states={0},
+        input_symbols={"a"} if with_loop else set(),
+        transitions={0: {"a": 0} if with_loop else {}},
+        initial_state=0,
+        final_states=set(),
+    )
+    assert dfa.bfs() == [0]
+
+
+@pytest.mark.parametrize("initial", ["s", None])
+def test_bfs_none_state(initial: FAStateT) -> None:
+    """Distinguish omitted starts from None, including a None initial state."""
+    dfa = ExtendedDFA(
+        states={"s", None, "f"},
+        input_symbols={"a"},
+        transitions={"s": {"a": None}, None: {"a": "f"}, "f": {}},
+        initial_state=initial,
+        final_states={"f"},
+        allow_partial=True,
+    )
+    expected = ["s", None, "f"] if initial == "s" else [None, "f"]
+    assert dfa.bfs() == expected
+    assert dfa.bfs(None) == [None, "f"]
+
+
+def test_bfs_unhashable_set_equal_to_a_state() -> None:
+    """Reject sets even when membership implicitly matches a frozen state."""
+    state = frozenset({1})
+    dfa = ExtendedDFA(
+        states={state},
+        input_symbols=set(),
+        transitions={state: {}},
+        initial_state=state,
+        final_states=set(),
+    )
+    with pytest.raises(InvalidStateError):
+        dfa.bfs({1})
+    assert dfa.bfs(state) == [state]
+
+
+def test_bfs_nfa_epsilon_levels() -> None:
+    """Count epsilon transitions as edges when determining BFS levels."""
+    nfa = ExtendedNFA(
+        states={0, 1, 2, 3, 4, 5},
+        input_symbols={"a"},
+        transitions={
+            0: {"": {1}, "a": {2}},
+            1: {"": {0, 3}},
+            2: {"a": {4}},
+        },
+        initial_state=0,
+        final_states={3, 4},
+    )
+    result = nfa.bfs()
+    assert result[0] == 0
+    assert set(result[1:3]) == {1, 2}
+    assert set(result[3:]) == {3, 4}
+    assert len(result) == 5
+
+
+def test_bfs_nfa_mixed_states_and_parallel_edges() -> None:
+    """Multiple destinations and repeated edges do not duplicate states."""
+    root, number, frozen, pair = "root", 7, frozenset({2}), (1, "x")
+    nfa = ExtendedNFA(
+        states={root, number, frozen, pair},
+        input_symbols={"a", "b"},
+        transitions={
+            root: {"a": {number, frozen}, "b": {number}},
+            number: {"": {pair}},
+            frozen: {"": {pair}},
+        },
+        initial_state=root,
+        final_states={pair},
+    )
+    result = nfa.bfs()
+    assert result[0] == root
+    assert set(result[1:3]) == {number, frozen}
+    assert result[3:] == [pair]
+    assert len(result) == len(set(result)) == 4
+
+
+def test_bfs_nfa_empty_target_set() -> None:
+    """Empty target sets do not create neighbors."""
+    nfa = ExtendedNFA(
+        states={"s", "f"},
+        input_symbols={"a"},
+        transitions={"s": {"a": set()}},
+        initial_state="s",
+        final_states={"f"},
+    )
+    assert nfa.bfs() == ["s"]
+
+
+@pytest.mark.parametrize("label", [None, "", "a*"])
+def test_bfs_gnfa_label_semantics(label: str | None) -> None:
+    """Respect the common iterator's handling of absent and epsilon edges."""
+    gnfa = ExtendedGNFA(
+        states={"s", "f"},
+        input_symbols={"a"},
+        transitions={"s": {"f": label}},
+        initial_state="s",
+        final_state="f",
+    )
+    assert gnfa.bfs() == (["s"] if label is None else ["s", "f"])
+
+
+def test_bfs_automaton_unchanged(automaton: ExtendedFA) -> None:
+    """Repeated queries leave slots and existing caches intact, adding none."""
+    attributes = set(vars(automaton))
+    for cls in type(automaton).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({name: getattr(automaton, name) for name in attributes})
+    dictionary_before = deepcopy(vars(automaton))
+    first = automaton.bfs()
+    second = automaton.bfs()
+    assert {name: getattr(automaton, name) for name in attributes} == before
+    assert vars(automaton) == dictionary_before
+    assert first == second
+    assert first is not second
+    first.clear()
+    assert automaton.bfs() == second
+
+
+def test_bfs_transitions_scanned_once(automaton: ExtendedFA) -> None:
+    """Adjacency is built once, regardless of the number of reached states."""
+    original = type(automaton).iter_transitions
+    with patch.object(
+        type(automaton), "iter_transitions", autospec=True
+    ) as scan:
+        scan.side_effect = original
+        result = automaton.bfs()
+    assert len(result) == 5
+    scan.assert_called_once_with(automaton)
