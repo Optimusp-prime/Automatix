@@ -32,3 +32,9 @@ Seuls les tests du dossier `tests/` sont collectés par défaut.
 ```python
 from automata_extensions.fa import ExtendedDFA
 ```
+
+## Project tracking
+
+- `AGENTS.md` — development rules
+- `docs/IMPLEMENTATION_STATUS.md` — professor requirement tracker
+- `docs/decisions/` — architecture decision records
