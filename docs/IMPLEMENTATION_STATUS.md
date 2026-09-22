@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #9 — Test whether an automaton is trim (VERIFIED)
+Current feature: #10 - Strongly connected components (VERIFIED)
 
-Next planned feature: #10 — Strongly connected components (not started)
+Next planned feature: #11 - Cycle existence detection (not started)
 
-Current phase: trim predicate verified; awaiting the next feature
+Current phase: SCC analysis verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -64,7 +64,7 @@ confirms their names and contracts.
 | 7 | Useful states | `useful_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet intersection of accessible and coaccessible states |
 | 8 | Trim an automaton | `trim()` | `AccessibilityMixin` with private concrete restrictions | VERIFIED | `tests/fa/test_trim.py` | Same-type new object; empty-language representatives; ADR-0007 |
 | 9 | Test whether an automaton is trim | `is_trim() -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Literal states == useful_states, including empty-language representatives |
-| 10 | Strongly connected components | TBD | TBD | TODO | — | — |
+| 10 | Strongly connected components | `strongly_connected_components()` | `SCCMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_scc.py` | Tarjan; all states; list of frozensets; ADR-0008 |
 | 11 | Cycle existence detection | TBD | TBD | TODO | — | — |
 | 12 | Cycle detection from a given state | TBD | TBD | TODO | — | — |
 | 13 | Empty-language decision | TBD | TBD | TODO | — | — |
@@ -571,4 +571,43 @@ confirms their names and contracts.
   no cache. Dense GNFA scanning can be quadratic. A valid upstream
   empty-language representative cannot satisfy the literal trim predicate
   because it must contain a non-useful initial state.
+- **Git commit:** pending.
+
+## #10 - Strongly connected components
+
+- **Specification:** compute every strongly connected component (SCC), also
+  called a composante fortement connexe, using Tarjan or Kosaraju. The
+  professor-source information was supplied in the task prompt; the PDFs
+  were not accessed. Every state, including one unreachable from the initial
+  state, belongs to exactly one maximal mutually reachable set.
+- **Algorithm:** classic recursive Tarjan with discovery indices, lowlinks,
+  a stack and on-stack membership. Search starts anew from every unvisited
+  state; a singleton is valid even without a self-loop.
+- **Public API:** `strongly_connected_components()`.
+- **Return type:** `list[FrozenSet[FAStateT]]`; components are nonempty,
+  disjoint, and together cover all states. Neither list order nor order
+  within a component is promised.
+- **Graph abstraction reused:** `_build_successors` builds adjacency once
+  from upstream `FA.iter_transitions()`. No concrete transition parsing,
+  cache, or source mutation is added.
+- **DFA/NFA/GNFA behavior:** labels are ignored; NFA multiple destinations
+  and epsilon transitions are edges; GNFA stored None labels are absent edges.
+- **Tests:** 12 test functions, 17 parametrized cases in
+  `tests/fa/test_scc.py` cover singletons, chains, cycles, one-way links,
+  disconnected and unreachable states, mixed component sizes, partial DFA,
+  heterogeneous/None states, NFA epsilon and multi-destinations, GNFA
+  None/epsilon labels, partition invariants, source immutability, one graph
+  scan, public inheritance and fresh results. The full suite has 342 passed,
+  including all 325 previous cases. Strict mypy passes on 19 source files.
+- **Complexity:** O(|Q| + T) time and O(|Q| + |E|) space, assuming
+  constant-time hashing and equality. Q includes every state, E the emitted
+  transitions including parallel edges, and T the cost of exhausting
+  iter_transitions, including empty NFA target entries and GNFA None slots.
+- **Recursion limitation:** a sufficiently deep graph may exceed Python's
+  recursion limit. No recursion-limit change is made.
+- **ADR:** [ADR-0008](decisions/ADR-0008-scc-analysis.md), reusing the
+  [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md) graph layer.
+- **Related requirements:** #11 and #12 concern cycle detection and remain
+  TODO, as do all other requirements #11-#62. Neither cycle predicate nor
+  `is_strongly_connected()` is implemented.
 - **Git commit:** pending.
