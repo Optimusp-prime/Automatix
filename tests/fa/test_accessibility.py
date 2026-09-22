@@ -328,3 +328,115 @@ def test_is_accessible_rejects_list_membership(automaton: ExtendedFA) -> None:
     """Unsupported membership keys retain the native TypeError behavior."""
     with pytest.raises(TypeError):
         automaton.is_accessible(["a"])
+
+
+@pytest.mark.parametrize("partial", [False, True])
+def test_coaccessible_chain(partial: bool) -> None:
+    """A final with no outgoing edge still reaches itself in zero steps."""
+    dfa = ExtendedDFA(
+        states={0, 1, 2}, input_symbols={"a"},
+        transitions={0: {"a": 1}, 1: {"a": 2},
+                     2: {} if partial else {"a": 2}},
+        initial_state=0, final_states={2}, allow_partial=partial,
+    )
+    assert dfa.coaccessible_states() == frozenset({0, 1, 2})
+
+
+def test_coaccessible_multiple_finals_and_distinct_accessibility() -> None:
+    """Reverse exploration includes disconnected paths to either final."""
+    dfa = ExtendedDFA(
+        states={"s", "dead", "u", "f", "v", "g"},
+        input_symbols={"a", "b"},
+        transitions={
+            "s": {"a": "dead", "b": "f"}, "dead": {"a": "dead"},
+            "u": {"a": "f"}, "f": {}, "v": {"a": "g"}, "g": {},
+        },
+        initial_state="s", final_states={"f", "g"}, allow_partial=True,
+    )
+    assert dfa.accessible_states() == {"s", "dead", "f"}
+    assert dfa.coaccessible_states() == {"s", "u", "f", "v", "g"}
+    assert dfa.accessible_states() != dfa.coaccessible_states()
+
+
+@pytest.mark.parametrize("exit_to_final", [False, True])
+def test_coaccessible_cycle(exit_to_final: bool) -> None:
+    """A cycle is coaccessible exactly when it has an exit to a final."""
+    dfa = ExtendedDFA(
+        states={0, 1, 2}, input_symbols={"a", "b"},
+        transitions={0: {"a": 1},
+                     1: {"a": 0, "b": 2} if exit_to_final else {"a": 0},
+                     2: {}},
+        initial_state=0, final_states={2}, allow_partial=True,
+    )
+    assert dfa.coaccessible_states() == ({0, 1, 2} if exit_to_final else {2})
+
+
+@pytest.mark.parametrize("kind", ["dfa", "nfa"])
+@pytest.mark.parametrize("final", [False, True])
+@pytest.mark.parametrize("state", [0, None])
+def test_coaccessible_singleton_and_empty_finals(
+    kind: str, final: bool, state: FAStateT,
+) -> None:
+    """DFA and NFA allow no accepting states, including a None singleton."""
+    cls = ExtendedDFA if kind == "dfa" else ExtendedNFA
+    automaton = cls(
+        states={state}, input_symbols=set(), transitions={state: {}},
+        initial_state=state, final_states={state} if final else set(),
+    )
+    assert automaton.coaccessible_states() == ({state} if final else set())
+
+
+@pytest.mark.parametrize("with_final", [False, True])
+def test_coaccessible_nfa_epsilon_and_parallel_targets(
+    with_final: bool,
+) -> None:
+    """Reverse epsilon paths and parallel edges retain heterogeneous states."""
+    pair = (1, "x")
+    nfa = ExtendedNFA(
+        states={None, 7, pair, "dead"}, input_symbols={"a", "b"},
+        transitions={
+            None: {"a": {7, "dead"}, "b": {7}},
+            7: {"": {pair}}, "dead": {"a": {"dead"}},
+        },
+        initial_state=None, final_states={pair} if with_final else set(),
+    )
+    result = nfa.coaccessible_states()
+    assert type(result) is frozenset
+    assert result == ({None, 7, pair} if with_final else set())
+    assert len(result) == (3 if with_final else 0)
+
+
+@pytest.mark.parametrize("label", [None, "", "a*"])
+def test_coaccessible_gnfa_edge_semantics(label: str | None) -> None:
+    """None labels are absent edges; None itself can be the final state."""
+    gnfa = ExtendedGNFA(
+        states={"s", None}, input_symbols={"a"},
+        transitions={"s": {None: label}},
+        initial_state="s", final_state=None,
+    )
+    expected: set[FAStateT] = {None} if label is None else {"s", None}
+    assert gnfa.coaccessible_states() == expected
+
+
+def test_coaccessible_immutable_single_scan(automaton: ExtendedFA) -> None:
+    """Each fresh query scans once and preserves all slots and caches."""
+    attributes = set(vars(automaton))
+    for cls in type(automaton).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({name: getattr(automaton, name) for name in attributes})
+    dictionary_before = deepcopy(vars(automaton))
+    original = type(automaton).iter_transitions
+    for _ in range(2):
+        with patch.object(
+            type(automaton), "iter_transitions", autospec=True,
+        ) as scan:
+            scan.side_effect = original
+            result = automaton.coaccessible_states()
+        scan.assert_called_once_with(automaton)
+        assert type(result) is frozenset
+        assert result == {"f"}
+        assert result != automaton.accessible_states()
+    assert {name: getattr(automaton, name) for name in attributes} == before
+    assert vars(automaton) == dictionary_before

@@ -42,3 +42,21 @@ def _build_successors(automaton: _GraphSource) -> _Successors:
     for source, target, _label in automaton.iter_transitions():
         successors[source].append(target)
     return {state: tuple(targets) for state, targets in successors.items()}
+
+
+def _build_predecessors(
+    automaton: _GraphSource,
+) -> Mapping[FAStateT, tuple[FAStateT, ...]]:
+    """Build fresh inverse adjacency from the common transition iterator.
+
+    Labels are ignored, with the same edge semantics as _build_successors.
+    Parallel edges and upstream iteration order are retained. Time is
+    O(|Q| + T), where T exhausts iter_transitions; space is O(|Q| + |E|).
+    No forward adjacency, source mutation or cache is needed.
+    """
+    predecessors: dict[FAStateT, list[FAStateT]] = {
+        state: [] for state in automaton.states
+    }
+    for source, target, _label in automaton.iter_transitions():
+        predecessors[target].append(source)
+    return {state: tuple(sources) for state, sources in predecessors.items()}

@@ -1,8 +1,23 @@
 """Accessibility analyses built on the common finite-automaton traversal."""
 
+from collections.abc import Set
 from typing import FrozenSet, Protocol
 
 from automata.fa.fa import FAStateT
+
+from automata_extensions.fa.fa_mixins.graph import (
+    _build_predecessors,
+    _GraphSource,
+)
+
+
+class _FinalGraphSource(_GraphSource, Protocol):
+    """Read-only graph and accepting states for reverse exploration."""
+
+    @property
+    def final_states(self) -> Set[FAStateT]:
+        """Return the accepting states, including GNFA's unique final."""
+        ...
 
 
 class _InitialTraversal(Protocol):
@@ -105,3 +120,47 @@ class AccessibilityMixin:
         semantics, not an additional contract attributed to the professor.
         """
         return state in self.accessible_states()
+
+    def coaccessible_states(self: _FinalGraphSource) -> FrozenSet[FAStateT]:
+        """Return all states from which a final state is reachable.
+
+        A coaccessible state is a state from which at least one final state
+        is reachable through zero or more transitions. Every final state
+        is included, even if unreachable from the initial state. Epsilon
+        transitions are edges; GNFA None labels represent absent edges.
+
+        Returns
+        -------
+        FrozenSet[FAStateT]
+            An immutable, unordered set without duplicates. With no final
+            states, the result is empty. No source data or cache is modified.
+
+        Complexity
+        ----------
+        Build inverse adjacency once in O(|Q| + T) time and O(|Q| + |E|)
+        space. Q contains all states, E the emitted transitions including
+        parallel edges, and T is the cost of exhausting iter_transitions.
+        T includes empty NFA target-set entries and stored GNFA None labels.
+        The multi-source traversal costs O(|Q_co| + |E_co|), where Q_co is
+        the coaccessible set and E_co the reverse edges examined from it.
+        Freezing the result adds O(|Q_co|) time and space. Overall:
+        O(|Q| + T) time and O(|Q| + |E|) space, assuming constant-time state
+        hashing and equality. Adjacency is built even with no final states.
+
+        References
+        ----------
+        Professor requirement #5 and AccessibilityMixin excerpts supplied
+        in the task prompt; the source PDFs were not accessed.
+        ADR-0005: common accessibility analysis layer.
+        ADR-0006: private reverse graph foundation.
+        """
+        predecessors = _build_predecessors(self)
+        visited = set(self.final_states)
+        pending = list(visited)
+        while pending:
+            state = pending.pop()
+            for predecessor in predecessors[state]:
+                if predecessor not in visited:
+                    visited.add(predecessor)
+                    pending.append(predecessor)
+        return frozenset(visited)

@@ -21,7 +21,7 @@ Current feature: #4 — Test whether a state is accessible (VERIFIED)
 
 Next planned feature: #5 — Coaccessible states (not started)
 
-Current phase: accessibility predicate verified; awaiting the next feature
+Current phase: coaccessible state set verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -59,7 +59,7 @@ confirms their names and contracts.
 | 2 | BFS | `bfs(start_state=<private sentinel>)` | `TraversalMixin` | VERIFIED | `tests/fa/test_traversal.py` | Level-order discovery with deque; DFA/NFA/GNFA; reuses ADR-0004 |
 | 3 | Accessible states | `accessible_states()` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet via existing iterative DFS; DFA/NFA/GNFA; ADR-0005 |
 | 4 | Test whether a state is accessible | `is_accessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in accessible_states; absent hashable state returns False |
-| 5 | Coaccessible states | TBD | TBD | TODO | — | — |
+| 5 | Coaccessible states | `coaccessible_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet; one reverse multi-source traversal; ADR-0006 |
 | 6 | Test whether a state is coaccessible | TBD | TBD | TODO | — | — |
 | 7 | Useful states | TBD | TBD | TODO | — | — |
 | 8 | Trim an automaton | TBD | TBD | TODO | — | — |
@@ -327,4 +327,47 @@ confirms their names and contracts.
   computation; callers checking many states can explicitly reuse a set returned
   by accessible_states(). Automata must satisfy upstream structural invariants.
   Membership uses Python's standard equality and hashing semantics.
+- **Git commit:** pending.
+
+
+## #5 ? Coaccessible states
+
+- **Specification:** reverse exploration from accepting states, as specified
+  in the professor excerpts supplied in the task; no PDF was accessed.
+- **Definition:** q is coaccessible iff a path of zero or more transitions
+  leads from q to at least one final state. Finals are included independently
+  of accessibility from the initial state.
+- **Design decisions:** common AccessibilityMixin under ADR-0005; preserve
+  requirements #1?#4 unchanged. A short local stack traversal handles reverse
+  multi-source exploration without adapting public forward DFS/BFS.
+- **Reverse-graph strategy:** private `_build_predecessors` builds inverse
+  adjacency once using upstream `iter_transitions`. No concrete-class branch,
+  forward graph allocation, public reverse/predecessors method or cache.
+  The inspected upstream `get_reachable_nodes` requires a NetworkX graph;
+  constructing one is unnecessary for this small pedagogical traversal.
+- **Public API:** `coaccessible_states()` with no parameters.
+- **Return type:** `FrozenSet[FAStateT]`, unordered and immutable.
+- **Tests:** seven new functions, 21 parametrized cases in
+  `tests/fa/test_accessibility.py`. Cover chains, multiple finals, zero-length
+  paths, cycles with/without exits, accessible versus coaccessible states,
+  disconnected predecessors, singleton and empty-final DFA/NFA, partial DFA,
+  NFA epsilon and parallel targets, GNFA None/epsilon/regex labels, None and
+  heterogeneous states, no duplicates, no mutation/cache and one scan per call.
+  Full suite: **201 passed**, including all 180 previous cases; one existing
+  pydub/audioop deprecation warning. Strict mypy passes on 16 source files.
+  Public imports remain valid and `git diff --check` reports no errors.
+- **Complexity:** O(|Q| + T) time and O(|Q| + |E|) space for inverse adjacency
+  and the complete query, assuming constant-time hashing/equality. Q contains
+  all states, E all emitted edges including parallel edges, T the cost of
+  exhausting the transition iterator (including empty NFA target entries and
+  stored GNFA None labels). The multi-source traversal costs
+  O(|Q_co| + |E_co|); freezing costs O(|Q_co|).
+- **Related requirements:** implements #5 only. #1?#4 remain VERIFIED;
+  #6?#62 remain TODO, including public predecessors #18 and reverse #36.
+- **ADR:** [ADR-0006](decisions/ADR-0006-reverse-graph-foundation.md),
+  complementing unchanged ADR-0004 and ADR-0005.
+- **Known limitations:** full inverse adjacency is rebuilt for every call,
+  even with no final states; dense GNFA scanning can be quadratic. DFA/NFA
+  allow empty final sets; GNFA construction requires one final state.
+  Valid upstream automata and standard state hashing/equality are assumed.
 - **Git commit:** pending.
