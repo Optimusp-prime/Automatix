@@ -723,3 +723,209 @@ def test_useful_states_preserves_source_and_inputs(
     assert coaccessible == automaton.coaccessible_states()
     assert {name: getattr(automaton, name) for name in attributes} == before
     assert vars(automaton) == dictionary_before
+
+
+@pytest.fixture(params=["dfa", "nfa", "gnfa"])
+def trim_candidate(
+    request: pytest.FixtureRequest,
+) -> ExtendedDFA | ExtendedNFA | ExtendedGNFA:
+    """A nonempty accepting path with one reachable non-useful state."""
+    states = {"s", "f", "dead"}
+    if request.param == "dfa":
+        return ExtendedDFA(
+            states=states, input_symbols={"a", "b"},
+            transitions={
+                "s": {"a": "f", "b": "dead"},
+                "f": {"a": "f", "b": "dead"},
+                "dead": {"a": "dead", "b": "dead"},
+            },
+            initial_state="s", final_states={"f"},
+        )
+    if request.param == "nfa":
+        return ExtendedNFA(
+            states=states, input_symbols={"a"},
+            transitions={"s": {"": {"f", "dead"}},
+                         "dead": {"a": {"dead"}}},
+            initial_state="s", final_states={"f"},
+        )
+    return ExtendedGNFA(
+        states=states, input_symbols={"a"},
+        transitions={
+            "s": {"f": "a", "dead": "a"},
+            "dead": {"f": None, "dead": "a"},
+        },
+        initial_state="s", final_state="f",
+    )
+
+
+@pytest.mark.parametrize("kind", ["dfa", "nfa", "gnfa"])
+def test_is_trim_all_states_useful(kind: str) -> None:
+    """A direct accepting path leaves no irrelevant state."""
+    if kind == "dfa":
+        automaton: ExtendedDFA | ExtendedNFA | ExtendedGNFA = ExtendedDFA(
+            states={"s", "f"}, input_symbols={"a"},
+            transitions={"s": {"a": "f"}, "f": {"a": "f"}},
+            initial_state="s", final_states={"f"},
+        )
+    elif kind == "nfa":
+        automaton = ExtendedNFA(
+            states={"s", "f"}, input_symbols={"a"},
+            transitions={"s": {"": {"f"}}},
+            initial_state="s", final_states={"f"},
+        )
+    else:
+        automaton = ExtendedGNFA(
+            states={"s", "f"}, input_symbols={"a"},
+            transitions={"s": {"f": "a"}},
+            initial_state="s", final_state="f",
+        )
+    assert automaton.is_trim() is True
+    assert type(automaton.is_trim()) is bool
+    assert automaton.is_trim() is (
+        automaton.states == automaton.useful_states()
+    )
+
+
+def test_is_trim_excludes_each_kind_of_nonuseful_state() -> None:
+    """Accessible-only, coaccessible-only, and neither all fail trimness."""
+    dfa = ExtendedDFA(
+        states={"s", "f", "dead", "unseen", "neither"},
+        input_symbols={"a", "b"},
+        transitions={
+            "s": {"a": "f", "b": "dead"},
+            "f": {}, "dead": {"a": "dead"},
+            "unseen": {"a": "f"}, "neither": {},
+        },
+        initial_state="s", final_states={"f"}, allow_partial=True,
+    )
+    assert dfa.accessible_states() == {"s", "f", "dead"}
+    assert dfa.coaccessible_states() == {"s", "f", "unseen"}
+    assert dfa.useful_states() == {"s", "f"}
+    assert dfa.is_trim() is False
+
+
+@pytest.mark.parametrize("kind", ["dfa", "nfa"])
+@pytest.mark.parametrize("final", [False, True])
+@pytest.mark.parametrize("state", [0, None])
+def test_is_trim_singleton(
+    kind: str, final: bool, state: FAStateT,
+) -> None:
+    """The zero-length path helps only an accepting singleton."""
+    cls = ExtendedDFA if kind == "dfa" else ExtendedNFA
+    automaton = cls(
+        states={state}, input_symbols=set(), transitions={state: {}},
+        initial_state=state, final_states={state} if final else set(),
+    )
+    assert automaton.is_trim() is final
+    assert type(automaton.is_trim()) is bool
+
+
+@pytest.mark.parametrize("has_exit", [False, True])
+def test_is_trim_cycle_needs_final_exit(has_exit: bool) -> None:
+    """A reachable cycle is useful only with a path to the final."""
+    dfa = ExtendedDFA(
+        states={0, 1, 2}, input_symbols={"a", "b"},
+        transitions={0: {"a": 1},
+                     1: {"a": 0, "b": 2} if has_exit else {"a": 0},
+                     2: {}},
+        initial_state=0, final_states={2}, allow_partial=True,
+    )
+    assert dfa.is_trim() is has_exit
+
+
+def test_is_trim_partially_defined_dfa() -> None:
+    """Missing symbol edges do not prevent a partial DFA being trim."""
+    dfa = ExtendedDFA(
+        states={"s", "f"}, input_symbols={"a", "b"},
+        transitions={"s": {"a": "f"}, "f": {}},
+        initial_state="s", final_states={"f"}, allow_partial=True,
+    )
+    assert dfa.is_trim() is True
+
+
+@pytest.mark.parametrize("with_dead", [False, True])
+def test_is_trim_nfa_epsilon_heterogeneous_none(with_dead: bool) -> None:
+    """None and unorderable states work through epsilon transitions."""
+    final = (1, "f")
+    states: set[FAStateT] = {None, 7, final}
+    transitions: dict[FAStateT, dict[str, set[FAStateT]]] = {
+        None: {"": {7}}, 7: {"a": {final}},
+    }
+    if with_dead:
+        states.add("dead")
+        transitions[None][""].add("dead")
+        transitions["dead"] = {"a": {"dead"}}
+    nfa = ExtendedNFA(
+        states=states, input_symbols={"a"}, transitions=transitions,
+        initial_state=None, final_states={final},
+    )
+    assert nfa.is_trim() is (not with_dead)
+    assert nfa.is_trim() is (nfa.states == nfa.useful_states())
+
+
+@pytest.mark.parametrize("label", [None, "", "a*"])
+def test_is_trim_gnfa_none_final_state(label: str | None) -> None:
+    """A None-valued state is valid; a None-labelled cell is not an edge."""
+    gnfa = ExtendedGNFA(
+        states={"s", None}, input_symbols={"a"},
+        transitions={"s": {None: label}},
+        initial_state="s", final_state=None,
+    )
+    assert gnfa.is_trim() is (label is not None)
+
+
+def test_is_trim_of_nonempty_trim_result(
+    trim_candidate: ExtendedDFA | ExtendedNFA | ExtendedGNFA,
+) -> None:
+    """A nonempty-language trim result has only useful states."""
+    assert trim_candidate.is_trim() is False
+    trimmed = trim_candidate.trim()
+    assert trimmed.useful_states() == trimmed.states == {"s", "f"}
+    assert trimmed.is_trim() is True
+
+
+def test_is_trim_of_empty_trim_result(automaton: ExtendedFA) -> None:
+    """Mandatory structural states remain non-useful for empty language."""
+    assert isinstance(automaton, (ExtendedDFA, ExtendedNFA, ExtendedGNFA))
+    assert automaton.useful_states() == frozenset()
+    trimmed = automaton.trim()
+    assert trimmed.states
+    assert trimmed.useful_states() == frozenset()
+    assert trimmed.is_trim() is False
+    assert trimmed.is_trim() is (
+        trimmed.states == trimmed.useful_states()
+    )
+
+
+def test_is_trim_delegates_once(
+    trim_candidate: ExtendedDFA | ExtendedNFA | ExtendedGNFA,
+) -> None:
+    """Use the existing set query once without a local traversal."""
+    original = type(trim_candidate).useful_states
+    with patch.object(
+        type(trim_candidate), "useful_states", autospec=True,
+    ) as query:
+        query.side_effect = original
+        assert trim_candidate.is_trim() is False
+    query.assert_called_once_with(trim_candidate)
+
+
+def test_is_trim_preserves_source(
+    trim_candidate: ExtendedDFA | ExtendedNFA | ExtendedGNFA,
+) -> None:
+    """Repeated predicate calls leave all instance attributes untouched."""
+    attributes = set(vars(trim_candidate))
+    for cls in type(trim_candidate).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({
+        name: getattr(trim_candidate, name) for name in attributes
+    })
+    dictionary_before = deepcopy(vars(trim_candidate))
+    for _ in range(2):
+        assert trim_candidate.is_trim() is False
+    assert {
+        name: getattr(trim_candidate, name) for name in attributes
+    } == before
+    assert vars(trim_candidate) == dictionary_before

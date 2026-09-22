@@ -68,6 +68,19 @@ class _Trimmable(Protocol):
         ...
 
 
+class _UsefulStatesQuery(Protocol):
+    """State universe and useful-set query required by the trim predicate."""
+
+    @property
+    def states(self) -> Set[FAStateT]:
+        """Return the automaton's state universe."""
+        ...
+
+    def useful_states(self) -> FrozenSet[FAStateT]:
+        """Return states on paths from the initial state to a final state."""
+        ...
+
+
 _TrimT = TypeVar("_TrimT", bound=_Trimmable)
 
 
@@ -313,3 +326,37 @@ class AccessibilityMixin:
         ADR-0007 define the layer and reconstruction policy.
         """
         return self._restrict_to_states(self.useful_states())
+
+    def is_trim(self: _UsefulStatesQuery) -> bool:
+        """Return whether every state of the automaton is useful.
+
+        A useful state is both reachable from the initial state and able
+        to reach a final state. The predicate applies this definition to
+        all present states, including mandatory structural states in an
+        empty-language result of trim(). No source data or cache is changed.
+
+        Returns
+        -------
+        bool
+            True exactly when states equals useful_states(). An automaton
+            representing the empty language has a nonempty state universe
+            under automata-lib and therefore returns False.
+
+        Complexity
+        ----------
+        useful_states() computes both forward and reverse adjacency in
+        O(|Q| + T) time and O(|Q| + |E|) peak space. Comparing the sets
+        adds O(|Q|) expected time. Q contains all states, E transitions
+        emitted by iter_transitions, and T is the cost of exhausting that
+        iterator, including empty NFA target entries and stored GNFA None
+        labels. Overall: O(|Q| + T) time and O(|Q| + |E|) peak space,
+        assuming constant-time state hashing and equality. No cache is used.
+
+        References
+        ----------
+        Professor requirement #9 and the reference AccessibilityMixin
+        excerpts supplied in the task prompt; the PDFs were not accessed.
+        ADR-0005: common accessibility analysis layer.
+        ADR-0007: structural states for empty-language trim results.
+        """
+        return self.states == self.useful_states()

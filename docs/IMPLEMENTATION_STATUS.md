@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #8 — Trim an automaton (VERIFIED)
+Current feature: #9 — Test whether an automaton is trim (VERIFIED)
 
-Next planned feature: #9 — Test whether an automaton is trim (not started)
+Next planned feature: #10 — Strongly connected components (not started)
 
-Current phase: trim transformation verified; awaiting the next feature
+Current phase: trim predicate verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -63,7 +63,7 @@ confirms their names and contracts.
 | 6 | Test whether a state is coaccessible | `is_coaccessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in coaccessible_states; absent hashable state returns False |
 | 7 | Useful states | `useful_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet intersection of accessible and coaccessible states |
 | 8 | Trim an automaton | `trim()` | `AccessibilityMixin` with private concrete restrictions | VERIFIED | `tests/fa/test_trim.py` | Same-type new object; empty-language representatives; ADR-0007 |
-| 9 | Test whether an automaton is trim | TBD | TBD | TODO | — | — |
+| 9 | Test whether an automaton is trim | `is_trim() -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Literal states == useful_states, including empty-language representatives |
 | 10 | Strongly connected components | TBD | TBD | TODO | — | — |
 | 11 | Cycle existence detection | TBD | TBD | TODO | — | — |
 | 12 | Cycle detection from a given state | TBD | TBD | TODO | — | — |
@@ -525,4 +525,50 @@ confirms their names and contracts.
 - **Related requirements:** implements #8 using #7. Requirements #1–#7
   remain VERIFIED; #9–#62 remain TODO. No public `is_trim()` (#9) or
   `induced_subautomaton()` (#19) is added.
+- **Git commit:** pending.
+
+## #9 — Test whether an automaton is trim
+
+- **Specification:** test whether all states are useful, as stated in the
+  professor-source information supplied in the task prompt. The PDFs were
+  not accessed.
+- **Mathematical definition:** an automaton is trim exactly when every
+  present state is both accessible from the initial state and able to reach
+  a final state: `states == useful_states()`.
+- **Public API:** `is_trim() -> bool`, with no parameters.
+- **Implementation:** the common `AccessibilityMixin` compares `self.states`
+  with one call to `self.useful_states()`. A private read-only Protocol types
+  that dependency. No traversal, transition extraction, cache or mutation
+  is added.
+- **Empty-language representation consequence:** by ADR-0007, `trim()` must
+  retain structural states when `useful_states()` is empty because upstream
+  rejects zero-state automata. Those states are not useful, so the returned
+  empty-language automaton has `is_trim() is False`. This follows the
+  professor's literal definition; there is no empty-language special case.
+- **Tests:** 11 new functions, 32 parametrized cases appended to
+  `tests/fa/test_accessibility.py`. Cover fully trim and non-trim DFA/NFA/GNFA,
+  accessible-only/coaccessible-only/neither states, accepting and nonfinal
+  singletons including None, useful and useless cycles, partial DFA, NFA
+  epsilon with heterogeneous states, GNFA absent/epsilon/regex edges and
+  None final state, exact bool return, equality with useful-state comparison,
+  results of nonempty and empty trim, one delegated query and immutability.
+  **325 passed** in the full suite, including all 293 previous cases; one
+  existing pydub/audioop deprecation warning. Strict mypy passes on 17
+  source files.
+- **Complexity:** useful_states() computes forward and reverse analyses in
+  O(|Q| + T) time and O(|Q| + |E|) peak space; the final set comparison adds
+  O(|Q|) expected time. Q includes all states, E all emitted transitions,
+  and T exhausts iter_transitions, including empty NFA target entries and
+  stored GNFA None labels. Total: O(|Q| + T) time and O(|Q| + |E|) peak
+  space, assuming constant-time state hashing and equality.
+- **Related requirements:** implements #9 using #7. Requirements #1–#8
+  remain VERIFIED; #10–#62 remain TODO.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md)
+  provides the common layer; [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md)
+  explains mandatory structural states in empty-language trim results.
+  Both are reused without changes; no new ADR is required.
+- **Known limitations:** each call recomputes both accessibility sets with
+  no cache. Dense GNFA scanning can be quadratic. A valid upstream
+  empty-language representative cannot satisfy the literal trim predicate
+  because it must contain a non-useful initial state.
 - **Git commit:** pending.
