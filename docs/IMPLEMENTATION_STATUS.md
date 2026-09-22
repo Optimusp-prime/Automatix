@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #2 — BFS (VERIFIED)
+Current feature: #3 — Accessible states (VERIFIED)
 
-Next planned feature: #3 — Accessible states (not started)
+Next planned feature: #4 — Test whether a state is accessible (not started)
 
-Current phase: BFS implemented and validated; awaiting the next feature
+Current phase: accessible states implemented and validated; awaiting next feature
 
 ## Infrastructure
 
@@ -57,7 +57,7 @@ confirms their names and contracts.
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
 | 1 | DFS iterative and recursive | `dfs(start_state=<private sentinel>, *, recursive=False)` | `TraversalMixin` via `ExtendedFA`, `fa/fa_mixins/` | VERIFIED | `tests/fa/test_traversal.py` | Iterative default; recursive variant; DFA/NFA/GNFA; explicit None is a state; ADR-0004 |
 | 2 | BFS | `bfs(start_state=<private sentinel>)` | `TraversalMixin` | VERIFIED | `tests/fa/test_traversal.py` | Level-order discovery with deque; DFA/NFA/GNFA; reuses ADR-0004 |
-| 3 | Accessible states | TBD | TBD | TODO | — | — |
+| 3 | Accessible states | `accessible_states()` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet via existing iterative DFS; DFA/NFA/GNFA; ADR-0005 |
 | 4 | Test whether a state is accessible | TBD | TBD | TODO | — | — |
 | 5 | Coaccessible states | TBD | TBD | TODO | — | — |
 | 6 | Test whether a state is coaccessible | TBD | TBD | TODO | — | — |
@@ -223,4 +223,56 @@ confirms their names and contracts.
   component. Ordering within a level depends on the upstream transition stream
   and is not guaranteed lexical or stable across processes. Automata must
   satisfy their upstream structural invariants.
+- **Git commit:** pending.
+
+## #3 — Accessible states
+
+- **Specification:** an accessible state is reachable from `initial_state`
+  through zero or more transitions. Include the initial state, omit unreachable
+  states, and treat epsilon transitions as edges. Accessibility is distinct
+  from the ability to reach a final state. Professor-source information comes
+  exclusively from the supplied prompt excerpts; no PDF was accessed.
+- **Design decisions:** separate the unordered accessibility analysis from
+  ordered traversal. Place `AccessibilityMixin` in the common ExtendedFA layer.
+  Reuse the existing iterative DFS default, which already handles DFA/NFA/GNFA
+  and avoids Python recursion limits. No new graph extraction, epsilon logic,
+  traversal loop, cache, or source mutation is introduced.
+- **Implementation:** `fa/fa_mixins/accessibility.py` contains only the public
+  `accessible_states` query in AccessibilityMixin. Its body is
+  `return frozenset(self.dfs())`. A private Protocol expresses the required
+  no-argument DFS call. ExtendedFA composes the mixin; constructors and MRO
+  remain valid. TraversalMixin and `_build_successors` are unchanged.
+- **Public API:** `accessible_states()` takes no parameters; accessibility is
+  always measured from `initial_state`, including when it is the state `None`.
+- **Return type:** `FrozenSet[FAStateT]` (runtime `frozenset`), an immutable,
+  unordered state set without duplicates. This respects the mathematical set
+  contract, the project's immutable-set preference and upstream conventions,
+  while retaining membership and set operations. Use `set(result)` if a mutable
+  local working copy is required; no discovery order is part of this API.
+- **Tests:** `tests/fa/test_accessibility.py`: 10 new test functions, 26 cases
+  after parametrization. Cover complete/partial DFA, full reachability and
+  isolated states, zero-length paths, cycles, multiple NFA targets, epsilon-only
+  reachability, GNFA absent/epsilon/regex edges, initial `None`, heterogeneous
+  states, no duplicates, independence from actual DFS order, frozenset/set
+  operations, source immutability, no cache, equality with both traversal sets,
+  and a single delegated DFS and transition scan. Full suite: **149 passed**,
+  including all existing DFS/BFS and structural tests; one pre-existing
+  `pydub/audioop` deprecation warning. Strict mypy passes on 16 source files.
+  Public imports, inherited constructors and MRO are validated;
+  `git diff --check` is clean.
+- **Complexity:** adjacency construction costs O(|Q| + T) time and
+  O(|Q| + |E|) space; delegated DFS costs O(|Q_reached| + |E_reached|) time
+  and O(|Q_reached|) additional space; building the frozenset adds
+  O(|Q_reached|) time and space. Total: O(|Q| + T) time, O(|Q| + |E|) space,
+  assuming constant-time hashing/equality. Q includes all states, E all emitted
+  transitions including parallel edges, and T is the cost of exhausting
+  `iter_transitions`, including empty NFA target-set and GNFA None entries.
+- **Related requirements:** implements #3 only. #1 and #2 remain VERIFIED and
+  unchanged; #4–#9 and #17 are related future work, not implemented here.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md),
+  complementing [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md).
+- **Known limitations:** every query rebuilds full adjacency via DFS, even for
+  a small reachable component. A dense GNFA may require quadratic scanning.
+  Automata must satisfy their upstream structural invariants. The returned
+  frozenset deliberately provides neither ordering nor in-place mutation.
 - **Git commit:** pending.

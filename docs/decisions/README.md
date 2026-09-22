@@ -21,6 +21,7 @@ mark its status Superseded with a link to the replacement once accepted.
 | [ADR-0002](ADR-0002-extension-strategy.md) | Accepted | Inheritance and mixins |
 | [ADR-0003](ADR-0003-common-extended-fa-layer.md) | Accepted | Common ExtendedFA layer |
 | [ADR-0004](ADR-0004-graph-traversal-foundation.md) | Accepted | Common graph traversal foundation |
+| [ADR-0005](ADR-0005-accessibility-analysis-layer.md) | Accepted | Accessibility analysis layer |
 
 ## Template
 

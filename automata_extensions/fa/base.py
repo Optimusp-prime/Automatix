@@ -2,6 +2,7 @@
 
 from automata.fa.fa import FA
 
+from automata_extensions.fa.fa_mixins.accessibility import AccessibilityMixin
 from automata_extensions.fa.fa_mixins.analyse import AnalyseMixin
 from automata_extensions.fa.fa_mixins.conversions import ConversionMixin
 from automata_extensions.fa.fa_mixins.grammaire import GrammaireMixin
@@ -10,6 +11,7 @@ from automata_extensions.fa.fa_mixins.visualisation import VisualisationMixin
 
 
 class ExtendedFA(
+    AccessibilityMixin,
     TraversalMixin,
     AnalyseMixin,
     ConversionMixin,
