@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #7 — Useful states (VERIFIED)
+Current feature: #8 — Trim an automaton (VERIFIED)
 
-Next planned feature: #8 — Trim an automaton (not started)
+Next planned feature: #9 — Test whether an automaton is trim (not started)
 
-Current phase: useful state set verified; awaiting the next feature
+Current phase: trim transformation verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -62,7 +62,7 @@ confirms their names and contracts.
 | 5 | Coaccessible states | `coaccessible_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet; one reverse multi-source traversal; ADR-0006 |
 | 6 | Test whether a state is coaccessible | `is_coaccessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in coaccessible_states; absent hashable state returns False |
 | 7 | Useful states | `useful_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet intersection of accessible and coaccessible states |
-| 8 | Trim an automaton | TBD | TBD | TODO | — | — |
+| 8 | Trim an automaton | `trim()` | `AccessibilityMixin` with private concrete restrictions | VERIFIED | `tests/fa/test_trim.py` | Same-type new object; empty-language representatives; ADR-0007 |
 | 9 | Test whether an automaton is trim | TBD | TBD | TODO | — | — |
 | 10 | Strongly connected components | TBD | TBD | TODO | — | — |
 | 11 | Cycle existence detection | TBD | TBD | TODO | — | — |
@@ -458,4 +458,71 @@ confirms their names and contracts.
 - **Known limitations:** each call recalculates both input sets, including
   two transition scans; dense GNFA scanning may be quadratic. The result
   intentionally carries no discovery order.
+- **Git commit:** pending.
+
+## #8 — Trim an automaton
+
+- **Specification:** return a new automaton without states that cannot
+  participate in an accepting path. The professor-source information is
+  supplied in the task prompt; the PDFs were not accessed.
+- **Mathematical meaning:** for nonempty `useful_states()`, retain exactly
+  those states, restrict transitions to endpoints within them, retain the
+  initial state and restrict final states. Preserve the recognized language.
+- **Reconstruction strategy:** `AccessibilityMixin.trim()` calls
+  `useful_states()` once and delegates to a private `_restrict_to_states`
+  method on each Extended concrete class. Reconstruct with `type(self)(...)`
+  and explicit constructor arguments; do not use `copy()` or generic
+  `input_parameters`, and do not expose `induced_subautomaton()`.
+- **Concrete return types:** each result is a fresh ExtendedDFA, ExtendedNFA,
+  or ExtendedGNFA matching its source type; extension methods remain usable.
+- **Empty-useful-state policy:** as explicitly chosen by the user, return
+  a valid same-type automaton for the empty language. DFA/NFA retain one
+  nonfinal initial state. GNFA retains separate initial/final states with a
+  None-labelled absent edge. In this case result states cannot equal the
+  empty useful set, because upstream validates that the initial state
+  belongs to states; GNFA also requires its final state.
+- **DFA `allow_partial` policy:** retain the source option unless deleting
+  edges from a complete DFA makes the result partial. Then set it to True,
+  as required by upstream validation. An empty-language complete DFA uses
+  an initial sink loop for every input symbol; an empty partial DFA uses
+  an empty transition row.
+- **NFA handling:** restrict each existing source row and each destination
+  set, including epsilon transitions. Preserve absent source rows when
+  upstream permits them. An empty-language result has no final state or edge.
+- **GNFA handling:** restrict the dense target table while keeping required
+  None-labelled cells, singular final_state and regex labels. The empty
+  representative has no real edge between initial and final.
+- **Immutability:** no source states, transitions, final states, options,
+  instance attributes or caches are changed; even an already-trim source
+  yields a distinct object. No cache is added.
+- **Language preservation:** representative words have equal acceptance
+  before and after trim for DFA/NFA, including empty-language results;
+  a nonempty GNFA example retains the same upstream `to_regex()` result.
+- **Tests:** 16 new functions, 38 cases in `tests/fa/test_trim.py`. Cover
+  all four state categories, transition/final-state restriction, complete
+  and partial DFA, NFA epsilon, GNFA None cells, useful/unuseful cycles,
+  None and heterogeneous states, already-trim inputs, all three empty
+  policies, source immutability, concrete return types, extension methods,
+  repeated trim and representative language preservation. **293 passed**
+  in the full suite, including all 255 previous cases; one existing
+  pydub/audioop deprecation warning. Strict mypy passes on 17 source files.
+- **Complexity:** useful-state analysis costs O(|Q| + T) time and
+  O(|Q| + |E|) peak space; restriction is one pass over retained transition
+  entries. Upstream constructor freezing/validation adds cost V and
+  temporary memory M. Full bounds are O(|Q| + T + V) time and
+  O(|Q| + |E| + M) peak space. For DFA/NFA, V is O(|Q| + |E|); GNFA also
+  parses retained regex labels, whose lengths are not counted by T.
+- **ADR:** [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md)
+  records the durable reconstruction and empty-language policies;
+  [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md) supplies
+  the common layer.
+- **Known limitations:** `trimmed.states == useful_states()` is necessarily
+  false for an empty useful set. GNFA does not read words; an empty GNFA's
+  `to_regex()` returns None at runtime despite its upstream str annotation.
+  Upstream NFA word reading via NetworkX rejects None as a state name;
+  trimming a None-state NFA is tested structurally, while word acceptance
+  uses readable state names. No upstream behavior is patched.
+- **Related requirements:** implements #8 using #7. Requirements #1–#7
+  remain VERIFIED; #9–#62 remain TODO. No public `is_trim()` (#9) or
+  `induced_subautomaton()` (#19) is added.
 - **Git commit:** pending.

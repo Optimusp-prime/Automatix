@@ -1,7 +1,7 @@
 """Accessibility analyses built on the common finite-automaton traversal."""
 
 from collections.abc import Set
-from typing import FrozenSet, Protocol
+from typing import FrozenSet, Protocol, Self, TypeVar
 
 from automata.fa.fa import FAStateT
 
@@ -54,6 +54,21 @@ class _AccessibilitySets(Protocol):
     def coaccessible_states(self) -> FrozenSet[FAStateT]:
         """Return states from which a final state can be reached."""
         ...
+
+
+class _Trimmable(Protocol):
+    """Useful-state query and concrete reconstruction required by trim."""
+
+    def useful_states(self) -> FrozenSet[FAStateT]:
+        """Return states participating in an accepting path."""
+        ...
+
+    def _restrict_to_states(self, states: FrozenSet[FAStateT]) -> Self:
+        """Build a same-type automaton for the chosen useful states."""
+        ...
+
+
+_TrimT = TypeVar("_TrimT", bound=_Trimmable)
 
 
 class AccessibilityMixin:
@@ -261,3 +276,40 @@ class AccessibilityMixin:
         ADR-0006: private reverse graph foundation used by coaccessibility.
         """
         return self.accessible_states() & self.coaccessible_states()
+
+    def trim(self: _TrimT) -> _TrimT:
+        """Return a new automaton restricted to its useful states.
+
+        The source automaton is not modified. If no state is useful, return
+        a valid same-type representation of the empty language because
+        automata-lib requires an initial state. Such a result necessarily
+        retains structural states outside the empty useful-state set.
+
+        Returns
+        -------
+        Self
+            A fresh automaton of the same concrete extension type. For a
+            nonempty useful set, its states equal useful_states().
+
+        Complexity
+        ----------
+        useful_states() computes forward and reverse adjacency separately,
+        costing O(|Q| + T) time and O(|Q| + |E|) peak space. Restriction
+        examines at most all retained transition entries once and builds
+        a new automaton. A complete empty-language DFA constructs one loop
+        per input symbol, bounded by T for a valid complete source.
+        Overall time is O(|Q| + T + V), where V is the upstream constructor
+        validation and freezing cost. For DFA/NFA, V is O(|Q| + |E|) under
+        constant-time state hashing and equality. For GNFA, V also includes
+        parsing retained regex labels, which depends on their lengths.
+        Peak space is O(|Q| + |E| + M), where M is any temporary memory
+        used by upstream validation. Q contains all states, E emitted edges,
+        and T exhausts iter_transitions, including stored GNFA None slots.
+
+        References
+        ----------
+        Professor requirement #8 and reference excerpts supplied in the
+        task prompt; the source PDFs were not accessed. ADR-0005 and
+        ADR-0007 define the layer and reconstruction policy.
+        """
+        return self._restrict_to_states(self.useful_states())
