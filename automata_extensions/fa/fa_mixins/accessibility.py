@@ -44,6 +44,18 @@ class _CoaccessibleStatesQuery(Protocol):
         ...
 
 
+class _AccessibilitySets(Protocol):
+    """Read-only state-set analyses required for useful states."""
+
+    def accessible_states(self) -> FrozenSet[FAStateT]:
+        """Return states reachable from the initial state."""
+        ...
+
+    def coaccessible_states(self) -> FrozenSet[FAStateT]:
+        """Return states from which a final state can be reached."""
+        ...
+
+
 class AccessibilityMixin:
     """Express accessibility properties without duplicating graph traversal."""
 
@@ -215,3 +227,37 @@ class AccessibilityMixin:
         ADR-0006: private reverse graph foundation.
         """
         return state in self.coaccessible_states()
+
+    def useful_states(self: _AccessibilitySets) -> FrozenSet[FAStateT]:
+        """Compute the states that are both accessible and coaccessible.
+
+        A useful state is reachable from the initial state and can reach
+        at least one final state. The result is empty if no accepting path
+        exists from the initial state.
+
+        Returns
+        -------
+        FrozenSet[FAStateT]
+            An immutable, unordered set of useful states without duplicates.
+            The automaton and both computed input sets remain unchanged.
+
+        Complexity
+        ----------
+        Each of accessible_states and coaccessible_states constructs its
+        own adjacency and traverses it. Each costs O(|Q| + T) time and
+        O(|Q| + |E|) space, where Q contains all states, E all transitions
+        emitted by iter_transitions (including parallel edges), and T is
+        the cost of exhausting that iterator. T includes NFA empty target
+        entries and stored GNFA None labels. Intersecting the two sets
+        takes at most O(|Q|) expected time and O(|Q|) result space.
+        Overall: O(|Q| + T) time and O(|Q| + |E|) peak space, assuming
+        constant-time state hashing and equality. No results are cached.
+
+        References
+        ----------
+        Professor requirement #7: intersection of accessible and
+        coaccessible states, as supplied in the task prompt; the source
+        PDFs were not accessed. ADR-0005: common accessibility analysis.
+        ADR-0006: private reverse graph foundation used by coaccessibility.
+        """
+        return self.accessible_states() & self.coaccessible_states()

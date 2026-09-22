@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #6 — Test whether a state is coaccessible (VERIFIED)
+Current feature: #7 — Useful states (VERIFIED)
 
-Next planned feature: #7 — Useful states (not started)
+Next planned feature: #8 — Trim an automaton (not started)
 
-Current phase: coaccessibility predicate verified; awaiting the next feature
+Current phase: useful state set verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -61,7 +61,7 @@ confirms their names and contracts.
 | 4 | Test whether a state is accessible | `is_accessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in accessible_states; absent hashable state returns False |
 | 5 | Coaccessible states | `coaccessible_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet; one reverse multi-source traversal; ADR-0006 |
 | 6 | Test whether a state is coaccessible | `is_coaccessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in coaccessible_states; absent hashable state returns False |
-| 7 | Useful states | TBD | TBD | TODO | — | — |
+| 7 | Useful states | `useful_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet intersection of accessible and coaccessible states |
 | 8 | Trim an automaton | TBD | TBD | TODO | — | — |
 | 9 | Test whether an automaton is trim | TBD | TBD | TODO | — | — |
 | 10 | Strongly connected components | TBD | TBD | TODO | — | — |
@@ -412,4 +412,50 @@ confirms their names and contracts.
 - **Known limitations:** repeated calls rebuild the coaccessible set and
   inverse adjacency; dense GNFA scanning may be quadratic. Callers making
   many queries can reuse a separately computed `coaccessible_states()` set.
+- **Git commit:** pending.
+
+## #7 — Useful states
+
+- **Specification:** compute the states that are both accessible and
+  coaccessible, from the professor-source information in the task prompt;
+  the PDF documents were not accessed.
+- **Mathematical definition:**
+  `useful_states = accessible_states ∩ coaccessible_states`. A useful state
+  lies on a path from the initial state to a final state. Accessible-only,
+  coaccessible-only and neither-category states are excluded. The set can be
+  empty when no final state is reachable from the initial state.
+- **Public API:** `useful_states()` with no parameters.
+- **Implementation:** in the existing common `AccessibilityMixin`, return
+  `self.accessible_states() & self.coaccessible_states()`. A private Protocol
+  types these two read-only dependencies. No new traversal, edge extraction,
+  representation-specific branch, mutation or cache is added.
+- **Return type:** `FrozenSet[FAStateT]`; the intersection of two frozensets
+  remains an immutable, unordered frozenset without duplicates.
+- **Tests:** nine new functions, 22 parametrized cases in
+  `tests/fa/test_accessibility.py`. Cover all-useful and empty results,
+  distinct accessible/coaccessible/useful sets, all four membership
+  categories, an inaccessible final, an initial state unable to reach any
+  final, cycles with and without a final exit, partial DFA, singleton
+  initial/final DFA and NFA including None, empty final sets, NFA epsilon
+  with heterogeneous states, GNFA present/absent and epsilon edges, exact
+  frozenset type, immutability and one call to each existing set query.
+  Full suite: **255 passed**, including all 233 previous tests; one existing
+  pydub/audioop deprecation warning. Strict mypy passes on 16 source files.
+- **Complexity:** each input analysis costs O(|Q| + T) time and
+  O(|Q| + |E|) space, and each constructs its own adjacency. Intersecting
+  the two sets adds at most O(|Q|) expected time and O(|Q|) result space.
+  Overall: O(|Q| + T) time and O(|Q| + |E|) peak space, at a constant factor
+  for two scans, assuming constant-time state hashing and equality. Q is all
+  states, E all emitted edges including parallel edges, and T exhausts the
+  transition iterator, including empty NFA target entries and stored GNFA
+  None labels.
+- **Related requirements:** implements #7 using #3 and #5. Requirements
+  #1–#6 remain VERIFIED; #8–#62 remain TODO. No trim or is_trim behavior is
+  introduced.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md)
+  covers the common accessibility layer; [ADR-0006](decisions/ADR-0006-reverse-graph-foundation.md)
+  remains applicable to coaccessible_states. No new ADR is needed.
+- **Known limitations:** each call recalculates both input sets, including
+  two transition scans; dense GNFA scanning may be quadratic. The result
+  intentionally carries no discovery order.
 - **Git commit:** pending.

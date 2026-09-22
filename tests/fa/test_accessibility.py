@@ -563,3 +563,163 @@ def test_is_coaccessible_preserves_source(automaton: ExtendedFA) -> None:
         assert automaton.is_coaccessible("s") is False
     assert {name: getattr(automaton, name) for name in attributes} == before
     assert vars(automaton) == dictionary_before
+
+
+def test_useful_states_separates_all_four_state_categories() -> None:
+    """The three sets differ, and a state in neither set is excluded."""
+    dfa = ExtendedDFA(
+        states={"s", "path", "f", "dead", "unseen", "neither"},
+        input_symbols={"a", "b"},
+        transitions={
+            "s": {"a": "path", "b": "dead"},
+            "path": {"a": "f"}, "f": {},
+            "dead": {"a": "dead"},
+            "unseen": {"a": "f"}, "neither": {},
+        },
+        initial_state="s", final_states={"f"}, allow_partial=True,
+    )
+    accessible = dfa.accessible_states()
+    coaccessible = dfa.coaccessible_states()
+    useful = dfa.useful_states()
+    assert accessible == {"s", "path", "f", "dead"}
+    assert coaccessible == {"s", "path", "f", "unseen"}
+    assert useful == {"s", "path", "f"}
+    assert useful == accessible & coaccessible
+    assert len({accessible, coaccessible, useful}) == 3
+    assert type(useful) is frozenset
+
+
+@pytest.mark.parametrize("has_exit", [False, True])
+def test_useful_states_cycle_with_or_without_final_exit(
+    has_exit: bool,
+) -> None:
+    """A reachable cycle contributes only if it can lead to a final."""
+    dfa = ExtendedDFA(
+        states={0, 1, 2}, input_symbols={"a", "b"},
+        transitions={
+            0: {"a": 1},
+            1: {"a": 0, "b": 2} if has_exit else {"a": 0},
+            2: {},
+        },
+        initial_state=0, final_states={2}, allow_partial=True,
+    )
+    assert dfa.useful_states() == ({0, 1, 2} if has_exit else set())
+
+
+def test_useful_states_empty_when_final_is_inaccessible(
+    automaton: ExtendedFA,
+) -> None:
+    """An isolated final and the initial state may both be non-useful."""
+    assert automaton.initial_state in automaton.accessible_states()
+    assert "f" in automaton.coaccessible_states()
+    assert "f" not in automaton.accessible_states()
+    assert automaton.useful_states() == frozenset()
+    assert type(automaton.useful_states()) is frozenset
+
+
+@pytest.mark.parametrize("kind", ["dfa", "nfa"])
+def test_useful_states_empty_without_final_states(kind: str) -> None:
+    """No accepting state yields an empty useful set in DFA and NFA."""
+    cls = ExtendedDFA if kind == "dfa" else ExtendedNFA
+    automaton = cls(
+        states={"s"}, input_symbols=set(), transitions={"s": {}},
+        initial_state="s", final_states=set(),
+    )
+    assert automaton.useful_states() == frozenset()
+
+
+@pytest.mark.parametrize("kind", ["dfa", "nfa"])
+@pytest.mark.parametrize("state", [0, None])
+def test_useful_states_single_initial_final(
+    kind: str, state: FAStateT,
+) -> None:
+    """The zero-length path makes an accepting singleton useful."""
+    cls = ExtendedDFA if kind == "dfa" else ExtendedNFA
+    automaton = cls(
+        states={state}, input_symbols=set(), transitions={state: {}},
+        initial_state=state, final_states={state},
+    )
+    assert automaton.useful_states() == frozenset({state})
+
+
+def test_useful_states_nfa_epsilon_with_heterogeneous_states() -> None:
+    """Epsilon paths compose with accessibility without sorting states."""
+    final = (1, "final")
+    nfa = ExtendedNFA(
+        states={None, 7, final, "dead", "unseen"},
+        input_symbols={"a"},
+        transitions={
+            None: {"": {7, "dead"}},
+            7: {"": {final}},
+            "dead": {"a": {"dead"}},
+            "unseen": {"a": {final}},
+        },
+        initial_state=None, final_states={final},
+    )
+    result = nfa.useful_states()
+    assert result == {None, 7, final}
+    assert result == nfa.accessible_states() & nfa.coaccessible_states()
+    assert type(result) is frozenset
+
+
+@pytest.mark.parametrize("label", [None, "", "a*"])
+def test_useful_states_gnfa_present_and_absent_edges(
+    label: str | None,
+) -> None:
+    """GNFA epsilon is an edge; a None label is no path to its final."""
+    gnfa = ExtendedGNFA(
+        states={"s", None}, input_symbols={"a"},
+        transitions={"s": {None: label}},
+        initial_state="s", final_state=None,
+    )
+    expected: set[FAStateT] = set() if label is None else {"s", None}
+    assert gnfa.useful_states() == expected
+    assert gnfa.useful_states() == (
+        gnfa.accessible_states() & gnfa.coaccessible_states()
+    )
+
+
+def test_useful_states_delegates_once_to_each_set_query(
+    automaton: ExtendedFA,
+) -> None:
+    """Composition asks each verified set query once without new traversal."""
+    original_accessible = type(automaton).accessible_states
+    original_coaccessible = type(automaton).coaccessible_states
+    with (
+        patch.object(
+            type(automaton), "accessible_states", autospec=True,
+        ) as accessible,
+        patch.object(
+            type(automaton), "coaccessible_states", autospec=True,
+        ) as coaccessible,
+    ):
+        accessible.side_effect = original_accessible
+        coaccessible.side_effect = original_coaccessible
+        assert automaton.useful_states() == frozenset()
+    accessible.assert_called_once_with(automaton)
+    coaccessible.assert_called_once_with(automaton)
+
+
+def test_useful_states_preserves_source_and_inputs(
+    automaton: ExtendedFA,
+) -> None:
+    """Intersection returns a frozen set without changing instance state."""
+    attributes = set(vars(automaton))
+    for cls in type(automaton).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({name: getattr(automaton, name) for name in attributes})
+    dictionary_before = deepcopy(vars(automaton))
+    accessible = automaton.accessible_states()
+    coaccessible = automaton.coaccessible_states()
+
+    for _ in range(2):
+        result = automaton.useful_states()
+        assert type(result) is frozenset
+        assert result == accessible & coaccessible
+
+    assert accessible == automaton.accessible_states()
+    assert coaccessible == automaton.coaccessible_states()
+    assert {name: getattr(automaton, name) for name in attributes} == before
+    assert vars(automaton) == dictionary_before
