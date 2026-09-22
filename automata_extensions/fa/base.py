@@ -2,13 +2,15 @@
 
 from automata.fa.fa import FA
 
-from automata_extensions.fa.mixins.analyse import AnalyseMixin
-from automata_extensions.fa.mixins.conversions import ConversionMixin
-from automata_extensions.fa.mixins.grammaire import GrammaireMixin
-from automata_extensions.fa.mixins.visualisation import VisualisationMixin
+from automata_extensions.fa.fa_mixins.analyse import AnalyseMixin
+from automata_extensions.fa.fa_mixins.conversions import ConversionMixin
+from automata_extensions.fa.fa_mixins.grammaire import GrammaireMixin
+from automata_extensions.fa.fa_mixins.traversal import TraversalMixin
+from automata_extensions.fa.fa_mixins.visualisation import VisualisationMixin
 
 
 class ExtendedFA(
+    TraversalMixin,
     AnalyseMixin,
     ConversionMixin,
     GrammaireMixin,

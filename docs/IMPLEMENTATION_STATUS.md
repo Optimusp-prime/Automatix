@@ -17,9 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: —  
-Next planned feature: DFS / BFS traversal  
-Current phase: foundation complete, algorithm design beginning
+Current feature: #1 — DFS iterative and recursive (VERIFIED)
+
+Next planned feature: #2 — BFS (not started)
+
+Current phase: DFS implemented and validated; awaiting the next feature
 
 ## Infrastructure
 
@@ -44,16 +46,16 @@ Infrastructure checked on 2026-09-22. The upstream reference commit is
 # Professor requirements
 
 Requirement numbers and ordering follow the professor's specification.
-All algorithmic requirements remain TODO, including those for which upstream
-already provides behavior: inherited behavior alone does not validate the
-project requirement. Planned public APIs remain TBD until feature design
+Requirements not yet implemented remain TODO, including those for which
+upstream already provides behavior: inherited behavior alone does not validate
+the project requirement. Planned public APIs remain TBD until feature design
 confirms their names and contracts.
 
 ## Level 1
 
 | # | Requirement | Planned public API | Layer / Mixin | Status | Tests | Notes |
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
-| 1 | DFS iterative and recursive | TBD | TBD | TODO | — | — |
+| 1 | DFS iterative and recursive | `dfs(start_state=<private sentinel>, *, recursive=False)` | `TraversalMixin` via `ExtendedFA`, `fa/fa_mixins/` | VERIFIED | `tests/fa/test_traversal.py` | Iterative default; recursive variant; DFA/NFA/GNFA; explicit None is a state; ADR-0004 |
 | 2 | BFS | TBD | TBD | TODO | — | — |
 | 3 | Accessible states | TBD | TBD | TODO | — | — |
 | 4 | Test whether a state is accessible | TBD | TBD | TODO | — | — |
@@ -128,19 +130,49 @@ confirms their names and contracts.
 
 # Feature notes
 
-No algorithmic feature has been implemented yet.
+## #1 — DFS iterative and recursive
 
-Feature-specific notes will be added when a feature enters DESIGN.
-
-Each future feature note may contain:
-
-- Specification
-- Design decisions
-- Implementation
-- Public API
-- Tests
-- Complexity
-- Related requirements
-- ADR references
-- Known limitations
-- Git commit
+- **Specification:** explore reachable states depth-first using either an
+  explicit stack or recursive calls. Return a discovery-order list, starting
+  with the selected state and including each reachable state exactly once.
+- **Design decisions:** use upstream `iter_transitions()` as the common edge
+  abstraction. Preserve its neighbor order without sorting heterogeneous
+  states. An omitted start uses `initial_state`; explicit `None` selects the
+  state `None`, as chosen by the user. Invalid or unhashable starts raise
+  upstream `InvalidStateError`.
+- **Implementation:** `fa/fa_mixins/traversal.py` provides `TraversalMixin`,
+  composed through `ExtendedFA`. The iterative variant uses a stack of neighbor
+  iterators; the recursive variant makes actual recursive calls. The private
+  `fa/fa_mixins/graph.py` helper builds fresh adjacency once per call. No cache,
+  source mutation, representation-specific branch, or additional public graph
+  API is introduced. The former `fa/mixins/` scaffolding moved to `fa/fa_mixins/`;
+  public imports remain unchanged.
+- **Public API:** `dfs(start_state=<private sentinel>, *, recursive=False)`
+  returns `list[FAStateT]`. `dfs()` is iterative; `dfs(recursive=True)` is
+  recursive; `dfs(None)` explicitly selects an actual `None` state.
+- **Tests:** `tests/fa/test_traversal.py`: 78 new parametrized test cases.
+  Covers branching and cross edges, full/partial DFA, NFA multiple destinations,
+  epsilon-only paths and cycles, GNFA regex/epsilon/absent edges, terminal and
+  singleton states, unreachable states, invalid starts, heterogeneous state
+  types, actual `None` states, duplicate edges, recursion limits, a single
+  transition scan, fresh results, and absence of mutation/cache. Full suite:
+  **84 passed**, with one pre-existing `pydub/audioop` deprecation warning.
+  Strict mypy checks cover the package and traversal tests. Public imports,
+  MRO, package discovery, and manual iterative/recursive examples also pass.
+- **Complexity:** let Q be all states, E all emitted transitions including
+  parallel edges, and T the cost of exhausting `iter_transitions()`. Adjacency:
+  O(|Q| + T) time, O(|Q| + |E|) space. DFS after construction:
+  O(|Q_reached| + |E_reached|) time, O(|Q_reached|) additional space.
+  Total: O(|Q| + T) time, O(|Q| + |E|) space, assuming constant-time state
+  hashing/equality. T includes NFA empty target-set entries and GNFA stored
+  `None` entries; a dense GNFA can require quadratic scanning.
+- **Related requirements:** #1 only is implemented. Potential future users:
+  #2, #3, #11, #12 and #17; their requirements are not advanced.
+- **ADR:** [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md).
+- **Known limitations:** recursive DFS may raise `RecursionError` on deep
+  paths; use the iterative default. Sibling order is not guaranteed across
+  processes. Each call builds the full adjacency even for a small reachable
+  component. Automata must satisfy their upstream structural invariants.
+  Reference-extension documentation was available as user-supplied excerpts,
+  not as a separate full document in the workspace.
+- **Git commit:** pending.
