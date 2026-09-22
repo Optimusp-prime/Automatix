@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "automata-extensions"
+version = "0.1.0"
+description = "Extensions pédagogiques pour automata-lib 9.2.0"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["automata-lib==9.2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["automata_extensions*"]
+exclude = ["reference*", "tests*", "notebooks*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

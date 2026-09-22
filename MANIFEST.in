@@ -1,0 +1,3 @@
+prune reference
+prune tests
+prune notebooks
