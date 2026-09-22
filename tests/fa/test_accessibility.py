@@ -440,3 +440,126 @@ def test_coaccessible_immutable_single_scan(automaton: ExtendedFA) -> None:
         assert result != automaton.accessible_states()
     assert {name: getattr(automaton, name) for name in attributes} == before
     assert vars(automaton) == dictionary_before
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [("f", True), ("s", False), ("a", False),
+     ("b", False), ("absent", False)],
+)
+def test_is_coaccessible_membership(
+    automaton: ExtendedFA, state: FAStateT, expected: bool,
+) -> None:
+    """An isolated final is coaccessible; a reachable cycle is not."""
+    result = automaton.is_coaccessible(state)
+    assert type(result) is bool
+    assert result is expected
+    assert result is (state in automaton.coaccessible_states())
+
+
+def test_is_coaccessible_differs_from_accessibility() -> None:
+    """Initial reachability and a path to a final are independent."""
+    dfa = ExtendedDFA(
+        states={"s", "dead", "unseen", "f"},
+        input_symbols={"a"},
+        transitions={
+            "s": {"a": "dead"}, "dead": {"a": "dead"},
+            "unseen": {"a": "f"}, "f": {},
+        },
+        initial_state="s", final_states={"f"}, allow_partial=True,
+    )
+    assert dfa.is_coaccessible("f") is True
+    assert dfa.is_coaccessible("unseen") is True
+    assert dfa.is_accessible("unseen") is False
+    assert dfa.is_coaccessible("s") is False
+    assert dfa.is_coaccessible("dead") is False
+    assert dfa.is_accessible("dead") is True
+
+
+@pytest.mark.parametrize("has_exit", [False, True])
+def test_is_coaccessible_cycle_exit(has_exit: bool) -> None:
+    """Cycle membership depends on a path to the final, not a loop."""
+    dfa = ExtendedDFA(
+        states={0, 1, 2}, input_symbols={"a", "b"},
+        transitions={0: {"a": 1},
+                     1: {"a": 0, "b": 2} if has_exit else {"a": 0},
+                     2: {}},
+        initial_state=0, final_states={2}, allow_partial=True,
+    )
+    assert dfa.is_coaccessible(0) is has_exit
+    assert dfa.is_coaccessible(1) is has_exit
+    assert dfa.is_coaccessible(2) is True
+
+
+def test_is_coaccessible_nfa_epsilon_and_multiple_targets() -> None:
+    """Epsilon edges and multiple targets affect set membership."""
+    nfa = ExtendedNFA(
+        states={0, 1, 2, 3}, input_symbols={"a"},
+        transitions={0: {"a": {1, 3}}, 1: {"": {2}},
+                     3: {"a": {3}}},
+        initial_state=0, final_states={2},
+    )
+    for state, expected in [(0, True), (1, True), (2, True), (3, False)]:
+        assert nfa.is_coaccessible(state) is expected
+        assert nfa.is_coaccessible(state) is (
+            state in nfa.coaccessible_states()
+        )
+
+
+@pytest.mark.parametrize("label", [None, "", "a*"])
+def test_is_coaccessible_gnfa_and_valid_none(label: str | None) -> None:
+    """A None final is valid; only an actual GNFA edge reaches it."""
+    gnfa = ExtendedGNFA(
+        states={"s", None}, input_symbols={"a"},
+        transitions={"s": {None: label}},
+        initial_state="s", final_state=None,
+    )
+    assert gnfa.is_coaccessible(None) is True
+    assert gnfa.is_coaccessible("s") is (label is not None)
+    assert gnfa.is_coaccessible("absent") is False
+
+
+def test_is_coaccessible_empty_final_set() -> None:
+    """With no accepting state, even the initial state fails the predicate."""
+    dfa = ExtendedDFA(
+        states={None}, input_symbols=set(), transitions={None: {}},
+        initial_state=None, final_states=set(),
+    )
+    assert dfa.is_coaccessible(None) is False
+
+
+def test_is_coaccessible_unhashable_matches_existing_predicate(
+    automaton: ExtendedFA,
+) -> None:
+    """Both predicates retain frozenset's native TypeError for a list."""
+    with pytest.raises(TypeError):
+        automaton.is_accessible(["f"])
+    with pytest.raises(TypeError):
+        automaton.is_coaccessible(["f"])
+
+
+def test_is_coaccessible_delegates_once(automaton: ExtendedFA) -> None:
+    """The predicate calls the verified set query once per invocation."""
+    original = type(automaton).coaccessible_states
+    with patch.object(
+        type(automaton), "coaccessible_states", autospec=True,
+    ) as query:
+        query.side_effect = original
+        assert automaton.is_coaccessible("f") is True
+    query.assert_called_once_with(automaton)
+
+
+def test_is_coaccessible_preserves_source(automaton: ExtendedFA) -> None:
+    """Repeated boolean queries leave all instance attributes unchanged."""
+    attributes = set(vars(automaton))
+    for cls in type(automaton).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({name: getattr(automaton, name) for name in attributes})
+    dictionary_before = deepcopy(vars(automaton))
+    for _ in range(2):
+        assert automaton.is_coaccessible("f") is True
+        assert automaton.is_coaccessible("s") is False
+    assert {name: getattr(automaton, name) for name in attributes} == before
+    assert vars(automaton) == dictionary_before

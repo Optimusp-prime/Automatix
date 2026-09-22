@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #4 — Test whether a state is accessible (VERIFIED)
+Current feature: #6 — Test whether a state is coaccessible (VERIFIED)
 
-Next planned feature: #5 — Coaccessible states (not started)
+Next planned feature: #7 — Useful states (not started)
 
-Current phase: coaccessible state set verified; awaiting the next feature
+Current phase: coaccessibility predicate verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -60,7 +60,7 @@ confirms their names and contracts.
 | 3 | Accessible states | `accessible_states()` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet via existing iterative DFS; DFA/NFA/GNFA; ADR-0005 |
 | 4 | Test whether a state is accessible | `is_accessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in accessible_states; absent hashable state returns False |
 | 5 | Coaccessible states | `coaccessible_states()` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet; one reverse multi-source traversal; ADR-0006 |
-| 6 | Test whether a state is coaccessible | TBD | TBD | TODO | — | — |
+| 6 | Test whether a state is coaccessible | `is_coaccessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in coaccessible_states; absent hashable state returns False |
 | 7 | Useful states | TBD | TBD | TODO | — | — |
 | 8 | Trim an automaton | TBD | TBD | TODO | — | — |
 | 9 | Test whether an automaton is trim | TBD | TBD | TODO | — | — |
@@ -370,4 +370,46 @@ confirms their names and contracts.
   even with no final states; dense GNFA scanning can be quadratic. DFA/NFA
   allow empty final sets; GNFA construction requires one final state.
   Valid upstream automata and standard state hashing/equality are assumed.
+- **Git commit:** pending.
+
+## #6 — Test whether a state is coaccessible
+
+- **Specification:** return whether the given state belongs to the set of
+  states that can reach at least one final state, as supplied in the task
+  prompt. The professor's PDFs were not accessed.
+- **Public API:** `is_coaccessible(state: FAStateT) -> bool`, with one required
+  state argument. `None` is an ordinary state value.
+- **Invalid-state behavior:** a hashable value absent from `self.states`
+  returns False. A non-hashable list retains native frozenset membership
+  `TypeError`, matching `is_accessible()`. This is the established project
+  predicate contract, not an additional claim from the unavailable PDFs.
+- **Implementation:** `return state in self.coaccessible_states()` in the
+  existing common `AccessibilityMixin`. A private structural Protocol types
+  this read-only dependency. No inverse traversal, edge extraction, cache or
+  source mutation is added to the predicate.
+- **Tests:** nine new functions, 32 cases after parametrization, appended to
+  `tests/fa/test_accessibility.py`. Cover final and predecessor states,
+  accessible but non-coaccessible states, inaccessible but coaccessible
+  states, cycles with and without a final-state exit, partial DFA, NFA epsilon
+  and multiple targets, GNFA absent/epsilon/regex edges, valid `None`,
+  absent and non-hashable arguments, exact bool results, set membership
+  equivalence, one delegation and source immutability. All 201 previous tests
+  continue to pass: **233 passed** in total, with one existing pydub/audioop
+  deprecation warning. Strict mypy passes on 16 source files.
+- **Complexity:** the complete query recomputes `coaccessible_states()`:
+  O(|Q| + T) time and O(|Q| + |E|) space, including inverse adjacency,
+  multi-source traversal and result creation. Q contains all states, E all
+  emitted edges including parallel edges, and T is the cost of exhausting
+  `iter_transitions`, including NFA empty target entries and stored GNFA None
+  labels. Frozenset membership alone is expected O(1), but the full query
+  has the larger bound. Standard constant-time state hashing and equality
+  are assumed.
+- **Related requirements:** implements #6 using #5. Requirements #1–#5
+  remain VERIFIED; #7–#62 remain TODO.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md) and
+  [ADR-0006](decisions/ADR-0006-reverse-graph-foundation.md), reused without
+  modification. No new architectural decision is needed.
+- **Known limitations:** repeated calls rebuild the coaccessible set and
+  inverse adjacency; dense GNFA scanning may be quadratic. Callers making
+  many queries can reuse a separately computed `coaccessible_states()` set.
 - **Git commit:** pending.

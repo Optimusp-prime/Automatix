@@ -36,6 +36,14 @@ class _AccessibleStatesQuery(Protocol):
         ...
 
 
+class _CoaccessibleStatesQuery(Protocol):
+    """Read-only set query required by the coaccessibility predicate."""
+
+    def coaccessible_states(self) -> FrozenSet[FAStateT]:
+        """Return states from which a final state can be reached."""
+        ...
+
+
 class AccessibilityMixin:
     """Express accessibility properties without duplicating graph traversal."""
 
@@ -164,3 +172,46 @@ class AccessibilityMixin:
                     visited.add(predecessor)
                     pending.append(predecessor)
         return frozenset(visited)
+
+    def is_coaccessible(
+        self: _CoaccessibleStatesQuery, state: FAStateT
+    ) -> bool:
+        """Return whether state can reach a final state in zero or more steps.
+
+        Parameters
+        ----------
+        state : FAStateT
+            State value to test. None is treated as an ordinary state.
+
+        Returns
+        -------
+        bool
+            True exactly when state belongs to coaccessible_states(). An
+            unreachable state or a hashable value absent from the automaton
+            returns False.
+
+        Raises
+        ------
+        TypeError
+            If state cannot be used as a frozenset membership key, such as
+            a list. Native membership behavior is preserved.
+
+        Complexity
+        ----------
+        Recomputing coaccessible_states costs O(|Q| + T) time and
+        O(|Q| + |E|) space, including inverse adjacency construction,
+        multi-source traversal and result creation. Q contains all states,
+        E all emitted transitions including parallel edges, and T is the
+        cost of exhausting iter_transitions, including empty NFA target-set
+        entries and stored GNFA None labels. The final membership test is
+        expected O(1), but the complete query has the stated bounds without
+        caching, assuming constant-time state hashing and equality.
+
+        References
+        ----------
+        Professor requirement #6: membership in the coaccessible state set,
+        as supplied in the task prompt; the source PDFs were not accessed.
+        ADR-0005: common accessibility analysis layer.
+        ADR-0006: private reverse graph foundation.
+        """
+        return state in self.coaccessible_states()
