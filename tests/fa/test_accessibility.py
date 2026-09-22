@@ -229,3 +229,102 @@ def test_single_delegated_traversal(automaton: ExtendedFA) -> None:
     assert result == {"s", "a", "b"}
     traversal.assert_called_once_with(automaton)
     scan.assert_called_once_with(automaton)
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("s", True),
+        ("a", True),
+        ("b", True),
+        ("f", False),
+        ("absent", False),
+        (None, False),
+    ],
+)
+def test_is_accessible_membership_contract(
+    automaton: ExtendedFA, state: FAStateT, expected: bool
+) -> None:
+    """Check membership for initial, cyclic, epsilon and absent states."""
+    result = automaton.is_accessible(state)
+    assert result is expected
+    assert result is (state in automaton.accessible_states())
+
+
+@pytest.mark.parametrize("initial", [0, None])
+def test_is_accessible_singleton(initial: FAStateT) -> None:
+    """The zero-length path makes even a None singleton accessible."""
+    dfa = ExtendedDFA(
+        states={initial},
+        input_symbols=set(),
+        transitions={initial: {}},
+        initial_state=initial,
+        final_states=set(),
+    )
+    assert dfa.is_accessible(initial) is True
+    assert dfa.is_accessible("absent") is False
+
+
+@pytest.mark.parametrize("reach_none", [False, True])
+def test_is_accessible_partial_dfa_mixed_states(reach_none: bool) -> None:
+    """None can be a real reachable or unreachable state in a partial DFA."""
+    frozen = frozenset({2})
+    dfa = ExtendedDFA(
+        states={"s", 7, frozen, None, "isolated"},
+        input_symbols={"a"},
+        transitions={
+            "s": {"a": 7},
+            7: {"a": frozen},
+            frozen: {"a": None} if reach_none else {},
+            None: {},
+            "isolated": {},
+        },
+        initial_state="s",
+        final_states={"isolated"},
+        allow_partial=True,
+    )
+    assert dfa.is_accessible(7) is True
+    assert dfa.is_accessible(frozen) is True
+    assert dfa.is_accessible(None) is reach_none
+    assert dfa.is_accessible("isolated") is False
+    assert dfa.is_accessible((1, "absent")) is False
+    for state in dfa.states:
+        assert dfa.is_accessible(state) is (state in dfa.accessible_states())
+
+
+def test_is_accessible_preserves_source_and_set(automaton: ExtendedFA) -> None:
+    """Boolean queries leave attributes, caches and the computed set intact."""
+    attributes = set(vars(automaton))
+    for cls in type(automaton).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        attributes.update([slots] if isinstance(slots, str) else slots)
+    attributes -= {"__dict__", "__weakref__"}
+    before = deepcopy({name: getattr(automaton, name) for name in attributes})
+    dictionary_before = deepcopy(vars(automaton))
+    states_before = automaton.accessible_states()
+
+    for _ in range(2):
+        assert automaton.is_accessible("a") is True
+        assert automaton.is_accessible("f") is False
+        assert automaton.is_accessible("absent") is False
+
+    assert states_before == automaton.accessible_states() == {"s", "a", "b"}
+    assert {name: getattr(automaton, name) for name in attributes} == before
+    assert vars(automaton) == dictionary_before
+
+
+def test_is_accessible_delegates_once(automaton: ExtendedFA) -> None:
+    """Use the existing set query once without a second local traversal."""
+    original = type(automaton).accessible_states
+    with patch.object(
+        type(automaton), "accessible_states", autospec=True
+    ) as query:
+        query.side_effect = original
+        assert automaton.is_accessible("a") is True
+    query.assert_called_once_with(automaton)
+
+
+def test_is_accessible_rejects_list_membership(automaton: ExtendedFA) -> None:
+    """Unsupported membership keys retain the native TypeError behavior."""
+    with pytest.raises(TypeError):
+        automaton.is_accessible(["a"])

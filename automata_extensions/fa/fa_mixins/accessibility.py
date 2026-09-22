@@ -13,6 +13,14 @@ class _InitialTraversal(Protocol):
         ...
 
 
+class _AccessibleStatesQuery(Protocol):
+    """Read-only set query required by the accessibility predicate."""
+
+    def accessible_states(self) -> FrozenSet[FAStateT]:
+        """Return the states accessible from the initial state."""
+        ...
+
+
 class AccessibilityMixin:
     """Express accessibility properties without duplicating graph traversal."""
 
@@ -52,3 +60,48 @@ class AccessibilityMixin:
         ADR-0005: accessibility analysis layer and immutable result contract.
         """
         return frozenset(self.dfs())
+
+    def is_accessible(
+        self: _AccessibleStatesQuery, state: FAStateT
+    ) -> bool:
+        """Return whether the given state is reachable from the initial state.
+
+        Parameters
+        ----------
+        state : FAStateT
+            State value to query using native frozenset membership semantics.
+            None is treated as an ordinary value, with no default meaning.
+
+        Returns
+        -------
+        bool
+            True exactly when state belongs to accessible_states(). An
+            unreachable state or a hashable value absent from the automaton
+            returns False. No source data or cached state is modified.
+
+        Raises
+        ------
+        TypeError
+            If state cannot be used as a frozenset membership key, for
+            example a list. Native membership behavior is not overridden.
+
+        Complexity
+        ----------
+        Recomputing accessible_states costs O(|Q| + T) time and
+        O(|Q| + |E|) space, including adjacency construction, traversal and
+        result creation. Q contains all states, E all emitted transitions,
+        and T is the cost of exhausting iter_transitions, including empty
+        NFA target-set entries and stored GNFA None labels. The final
+        membership test is expected O(1), but the complete query remains
+        O(|Q| + T) time and O(|Q| + |E|) space without caching, assuming
+        constant-time state hashing and equality.
+
+        References
+        ----------
+        Professor requirement #4: membership in the accessible state set,
+        as supplied in the task prompt; the source PDFs were not accessed.
+        ADR-0005: common accessibility analysis layer.
+        The absent-state policy is a project choice based on membership
+        semantics, not an additional contract attributed to the professor.
+        """
+        return state in self.accessible_states()

@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #3 — Accessible states (VERIFIED)
+Current feature: #4 — Test whether a state is accessible (VERIFIED)
 
-Next planned feature: #4 — Test whether a state is accessible (not started)
+Next planned feature: #5 — Coaccessible states (not started)
 
-Current phase: accessible states implemented and validated; awaiting next feature
+Current phase: accessibility predicate verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -58,7 +58,7 @@ confirms their names and contracts.
 | 1 | DFS iterative and recursive | `dfs(start_state=<private sentinel>, *, recursive=False)` | `TraversalMixin` via `ExtendedFA`, `fa/fa_mixins/` | VERIFIED | `tests/fa/test_traversal.py` | Iterative default; recursive variant; DFA/NFA/GNFA; explicit None is a state; ADR-0004 |
 | 2 | BFS | `bfs(start_state=<private sentinel>)` | `TraversalMixin` | VERIFIED | `tests/fa/test_traversal.py` | Level-order discovery with deque; DFA/NFA/GNFA; reuses ADR-0004 |
 | 3 | Accessible states | `accessible_states()` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | FrozenSet via existing iterative DFS; DFA/NFA/GNFA; ADR-0005 |
-| 4 | Test whether a state is accessible | TBD | TBD | TODO | — | — |
+| 4 | Test whether a state is accessible | `is_accessible(state) -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Membership in accessible_states; absent hashable state returns False |
 | 5 | Coaccessible states | TBD | TBD | TODO | — | — |
 | 6 | Test whether a state is coaccessible | TBD | TBD | TODO | — | — |
 | 7 | Useful states | TBD | TBD | TODO | — | — |
@@ -275,4 +275,56 @@ confirms their names and contracts.
   a small reachable component. A dense GNFA may require quadratic scanning.
   Automata must satisfy their upstream structural invariants. The returned
   frozenset deliberately provides neither ordering nor in-place mutation.
+- **Git commit:** pending.
+
+## #4 — Test whether a state is accessible
+
+- **Specification:** return membership in the set of states reachable from
+  `initial_state`. The professor-source excerpts supplied in the prompt define
+  this predicate and its placement; no PDF was accessed. Those excerpts do
+  not prescribe an exception for arguments absent from `self.states`.
+- **Design:** extend the existing AccessibilityMixin under ADR-0005, without
+  changing architecture or requirements #1–#3. No upstream `is_accessible`
+  collision was found. The inspected `Automaton.accepts_input` and
+  `Automaton.__contains__` distinguish a boolean membership query from a
+  validating operation; DFA language predicates `issubset` and `isdisjoint`
+  also express boolean properties. These are supporting analogies, not an
+  identical upstream state-predicate contract.
+- **Public API:** `is_accessible(state: FAStateT) -> bool`, with one required
+  state argument and no start-state option. None is an ordinary state value.
+- **Behavior for invalid states:** a hashable state absent from the automaton
+  returns False, as does a valid but unreachable state. This follows the
+  supplied set-membership definition; it is a project choice, not a behavior
+  claimed to appear in the unavailable PDFs. DFS/BFS reject invalid starting
+  states because they must start a traversal there; this query does not select
+  a new start. Native frozenset membership behavior is preserved: unsupported
+  keys such as lists raise TypeError; Python's set-to-frozenset lookup handling
+  is not overridden. No InvalidStateError is introduced for an absent query.
+- **Implementation:** `return state in self.accessible_states()`. The set query
+  is called once per predicate call. A private structural Protocol types this
+  dependency without changing the existing accessible_states method. No local
+  traversal, adjacency extraction, cache, mutation, or new mixin is introduced.
+- **Tests:** six new functions, 31 cases after parametrization, appended to
+  `tests/fa/test_accessibility.py`. Cover initial/accessible/unreachable/absent
+  states, cycles, singleton automata, partial DFA, NFA epsilon-only reachability,
+  GNFA, valid and absent None, heterogeneous states, exact bool results,
+  equivalence to set membership, list TypeError, no mutation/cache and exactly
+  one delegation. All existing tests and fixtures are unchanged. Full suite:
+  **180 passed**, with one existing `pydub/audioop` deprecation warning.
+  The established strict mypy check passes on 16 source files;
+  `git diff --check` is clean. Public imports and the inherited API remain valid.
+- **Complexity:** each call recomputes accessible_states: O(|Q| + T) time and
+  O(|Q| + |E|) space, including adjacency, traversal and the result set. Q means
+  all states, E all emitted transitions, and T the cost of exhausting the
+  upstream transition iterator, including empty NFA target sets and stored
+  GNFA None labels. The final membership check is expected O(1), but the
+  complete query is not O(1). Bounds assume constant-time hashing/equality.
+- **Related requirements:** implements #4 only using #3; #1–#3 remain VERIFIED.
+  Requirements #5–#62 remain TODO and are not implemented here.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md), reused
+  without modification. No new ADR is needed for this local predicate contract.
+- **Known limitations:** repeated calls repeat the full accessible-set
+  computation; callers checking many states can explicitly reuse a set returned
+  by accessible_states(). Automata must satisfy upstream structural invariants.
+  Membership uses Python's standard equality and hashing semantics.
 - **Git commit:** pending.
