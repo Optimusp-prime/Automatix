@@ -2,6 +2,9 @@
 
 from copy import deepcopy
 from itertools import combinations
+from typing import Mapping, cast
+
+from automata.fa.fa import FAStateT
 
 from automata_extensions.fa import ExtendedDFA, ExtendedGNFA, ExtendedNFA
 from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
@@ -131,8 +134,7 @@ def test_query_is_immutable_and_dfa_specific() -> None:
     assert MinimizationMixin not in ExtendedGNFA.__mro__
     assert not any(
         hasattr(d, name) for name in
-        ("pair_table", "pair_table_str", "print_pair_table",
-         "is_minimal", "minimize")
+        ("pair_table", "pair_table_str", "print_pair_table")
     )
 
 
@@ -238,5 +240,166 @@ def test_heterogeneous_states_and_immutability() -> None:
     }
     assert d.input_parameters == before
     assert ExtendedDFA.equivalence_classes is MinimizationMixin.equivalence_classes
-    assert not hasattr(d, "is_minimal")
-    assert not hasattr(d, "minimize")
+
+
+def _three_state_cycle() -> ExtendedDFA:
+    return ExtendedDFA(
+        states={"0", "1", "2"}, input_symbols={"a"},
+        transitions={"0": {"a": "1"}, "1": {"a": "2"}, "2": {"a": "0"}},
+        initial_state="0", final_states={"2"},
+    )
+
+
+def _redundant_dfa() -> ExtendedDFA:
+    return ExtendedDFA(
+        states={"start", "left", "right", "unreachable"},
+        input_symbols={"a", "b"},
+        transitions={
+            "start": {"a": "left", "b": "right"},
+            "left": {"a": "left", "b": "left"},
+            "right": {"a": "right", "b": "right"},
+            "unreachable": {"a": "unreachable", "b": "unreachable"},
+        },
+        initial_state="start", final_states={"left", "right"},
+    )
+
+
+def test_source_compatibility_minimality_and_both_naming_modes() -> None:
+    d = _three_state_cycle()
+    assert d.is_minimal() is True
+    default = d.minimize()
+    named = d.minimize(keep_original_names=True)
+    assert sorted(map(str, default.states)) == [
+        "frozenset({'0'})", "frozenset({'1'})", "frozenset({'2'})",
+    ]
+    assert sorted(named.states) == ["0", "1", "2"]
+    assert default is not d and named is not d
+    assert default.is_minimal() is True
+    assert named.is_minimal() is True
+    assert d.is_equivalent(default) is True
+    assert d.is_equivalent(named) is True
+
+
+def test_inaccessible_singleton_class_prevents_minimality() -> None:
+    d = ExtendedDFA(
+        states={"0", "1", "2", "unreachable"}, input_symbols={"a"},
+        transitions={
+            "0": {"a": "1"}, "1": {"a": "2"}, "2": {"a": "0"},
+            "unreachable": {"a": "unreachable"},
+        },
+        initial_state="0", final_states={"2", "unreachable"},
+    )
+    assert all(len(group) == 1 for group in d.equivalence_classes())
+    assert d.is_minimal() is False
+    result = d.minimize()
+    assert all("unreachable" not in group for group in result.states)
+    assert result.is_minimal() is True
+    assert d.is_equivalent(result) is True
+
+
+def test_equivalent_accessible_states_are_merged_into_quotient() -> None:
+    source = _redundant_dfa()
+    before = deepcopy(source.input_parameters)
+    assert source.is_minimal() is False
+    result = source.minimize()
+    merged = frozenset({"left", "right"})
+    initial = frozenset({"start"})
+    assert type(result) is ExtendedDFA
+    assert result is not source
+    assert result.states == {initial, merged}
+    assert result.initial_state == initial
+    assert result.final_states == {merged}
+    transitions = cast(Mapping[FAStateT, Mapping[str, FAStateT]], result.transitions)
+    assert transitions == {
+        initial: {"a": merged, "b": merged},
+        merged: {"a": merged, "b": merged},
+    }
+    assert result.is_minimal() is True
+    assert source.is_equivalent(result) is True
+    assert source.input_parameters == before
+    assert result.complement().is_complete() is True
+
+
+def test_representative_names_and_initial_state_policy() -> None:
+    source = _redundant_dfa()
+    result = source.minimize(keep_original_names=True)
+    assert result.states == {"start", "left"} or result.states == {"start", "right"}
+    assert result.initial_state == "start"
+    assert result.final_states == result.states - {"start"}
+    assert result.is_minimal() is True
+    assert source.is_equivalent(result) is True
+
+
+def test_partial_dfa_merges_states_without_exporting_analysis_trap() -> None:
+    source = ExtendedDFA(
+        states={"start", "left", "right"}, input_symbols={"a", "b"},
+        transitions={
+            "start": {"a": "left", "b": "right"},
+            "left": {"a": "left"}, "right": {"a": "right"},
+        },
+        initial_state="start", final_states={"left", "right"},
+        allow_partial=True,
+    )
+    result = source.minimize()
+    named = source.minimize(keep_original_names=True)
+    assert result.states == {
+        frozenset({"start"}), frozenset({"left", "right"}),
+    }
+    assert all(group.issubset(source.states) for group in result.states)
+    assert result.allow_partial is True
+    assert source.is_equivalent(result) is True
+    assert source.is_equivalent(named) is True
+    assert result.is_minimal() is True
+    assert named.is_minimal() is True
+
+
+def test_partial_equivalent_states_with_different_missing_edges() -> None:
+    source = ExtendedDFA(
+        states={"start", "p", "q", "dead"}, input_symbols={"a", "b"},
+        transitions={
+            "start": {"a": "p", "b": "q"},
+            "p": {"a": "p"},
+            "q": {"a": "q", "b": "dead"},
+            "dead": {"a": "dead", "b": "dead"},
+        },
+        initial_state="start", final_states={"p", "q"},
+        allow_partial=True,
+    )
+    result = source.minimize()
+    assert frozenset({"p", "q"}) in result.states
+    assert frozenset({"dead"}) in result.states
+    assert result.is_minimal() is True
+    assert source.is_equivalent(result) is True
+
+
+def test_none_and_heterogeneous_states_minimize_without_upstream_minify() -> None:
+    source = ExtendedDFA(
+        states={None, 1, ("final",), "extra"}, input_symbols={"a", "b"},
+        transitions={
+            None: {"a": 1, "b": ("final",)},
+            1: {"a": 1, "b": ("final",)},
+            ("final",): {"a": ("final",), "b": ("final",)},
+            "extra": {"a": "extra", "b": "extra"},
+        },
+        initial_state=None, final_states={("final",)},
+    )
+    default = source.minimize()
+    named = source.minimize(keep_original_names=True)
+    assert default.initial_state == frozenset({None, 1})
+    assert named.initial_state is None
+    assert all("extra" not in group for group in default.states)
+    assert default.is_minimal() is True
+    assert named.is_minimal() is True
+    assert source.is_equivalent(default) is True
+    assert source.is_equivalent(named) is True
+
+
+def test_minimality_predicate_is_exact_bool_and_handles_partial_dfa() -> None:
+    d = ExtendedDFA(
+        states={"q"}, input_symbols={"a", "b"},
+        transitions={"q": {"a": "q"}}, initial_state="q",
+        final_states={"q"}, allow_partial=True,
+    )
+    assert d.is_minimal() is True
+    assert type(d.is_minimal()) is bool
+    assert d.minimize().is_minimal() is True

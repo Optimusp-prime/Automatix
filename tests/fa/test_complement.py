@@ -143,11 +143,24 @@ def test_retain_names_is_accepted_without_minification() -> None:
 
 
 @pytest.mark.parametrize("retain_names", [False, True])
-def test_minify_true_is_explicitly_deferred(retain_names: bool) -> None:
+def test_minify_true_uses_extension_minimization(retain_names: bool) -> None:
     source = _partial_dfa()
-    with pytest.raises(NotImplementedError, match="requirement #32"):
-        source.complement(minify=True, retain_names=retain_names)
+    result = source.complement(minify=True, retain_names=retain_names)
+    assert type(result) is ExtendedDFA
+    assert result.is_minimal() is True
+    assert result.is_equivalent(source.complement()) is True
     assert source.is_complete() is False
+
+
+def test_source_compatibility_minified_complement_retains_names() -> None:
+    d = ExtendedDFA(
+        states={"0", "1", "2"}, input_symbols={"a"},
+        transitions={"0": {"a": "1"}, "1": {"a": "2"}, "2": {"a": "0"}},
+        initial_state="0", final_states={"2"},
+    )
+    c2 = d.complement(minify=True, retain_names=True)
+    assert sorted(c2.states) == ["0", "1", "2"]
+    assert c2.is_minimal() is True
 
 
 def test_complement_does_not_mutate_source() -> None:

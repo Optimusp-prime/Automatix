@@ -2,7 +2,7 @@
 
 from collections import defaultdict, deque
 from itertools import combinations
-from typing import Protocol, TypeAlias, cast
+from typing import Protocol, Self, TypeAlias, cast
 
 from automata.fa.dfa import DFA
 from automata.fa.fa import FAStateT
@@ -21,6 +21,16 @@ class _DistinguishabilityQuery(Protocol):
     """Existing pair analysis reused by the equivalence partition."""
 
     def distinguishable_states(self) -> set[_StatePair]: ...
+
+
+class _MinimizationQueries(Protocol):
+    """Existing accessibility, restriction and partition operations."""
+
+    def accessible_states(self) -> frozenset[FAStateT]: ...
+
+    def induced_subautomaton(self, states: frozenset[FAStateT]) -> DFA: ...
+
+    def equivalence_classes(self) -> list[frozenset[FAStateT]]: ...
 
 
 def _distinguishability_table(dfa: DFA) -> set[_StatePair]:
@@ -139,3 +149,126 @@ class MinimizationMixin:
         for state in dfa.states:
             groups[find(state)].add(state)
         return [frozenset(group) for group in groups.values()]
+
+    def is_minimal(self) -> bool:
+        """Return whether every state is accessible and inequivalent.
+
+        A DFA with an unreachable state is not minimal, even if all its
+        Myhill–Nerode classes are singletons. The query does not mutate
+        the automaton or construct a minimized one.
+
+        Returns
+        -------
+        bool
+            True exactly when all states are accessible and every
+            equivalence class contains one state.
+
+        Complexity
+        ----------
+        O(|Q| + T + |Q|² × |Sigma| + |Q|² × alpha(|Q|) + V)
+        expected time and O(|Q|² × |Sigma| + |Q| + |E| + M)
+        auxiliary space, including the delegated accessibility and
+        equivalence-class analyses. V/M cover upstream validation.
+
+        References
+        ----------
+        Professor requirement #31 and the supplied mature clarification:
+        accessibility plus singleton Myhill–Nerode classes.
+        """
+        dfa = cast(DFA, self)
+        queries = cast(_MinimizationQueries, self)
+        return (
+            queries.accessible_states() == dfa.states
+            and all(len(group) == 1 for group in queries.equivalence_classes())
+        )
+
+    def minimize(self, *, keep_original_names: bool = False) -> Self:
+        """Return a fresh minimal DFA recognizing the same language.
+
+        Restrict to accessible states, partition them by Myhill–Nerode
+        equivalence, and construct the quotient. By default an output state
+        is its frozenset equivalence class. With ``keep_original_names``,
+        an arbitrary member names each class, except that the initial
+        state's class is named by the original initial state.
+
+        For partial DFA, equivalent states can differ by an absent edge
+        versus an edge to an empty-language class. Retaining any defined
+        edge from a class preserves language and keeps all quotient classes
+        reachable. The analysis-only completion trap is never exported.
+        The source automaton is not modified.
+
+        Parameters
+        ----------
+        keep_original_names : bool, default: False
+            Name each quotient state by a member of its class instead of
+            the class frozenset itself.
+
+        Returns
+        -------
+        Self
+            Fresh minimal ExtendedDFA with the same input alphabet and
+            accepted language.
+
+        Complexity
+        ----------
+        O(|Q| + T + |R|² × |Sigma| + |R|² × alpha(|R|) + V)
+        expected time and O(|R|² × |Sigma| + |Q| + |E| + M)
+        auxiliary space. R is the accessible-state set. V/M include the
+        induced subautomaton and quotient constructors plus validation.
+        Each accessible transition is inspected once for the quotient.
+
+        References
+        ----------
+        Professor requirement #32: merge equivalent accessible states.
+        Reuses requirements #3, #19 and #30, not upstream ``DFA.minify``.
+        """
+        dfa = cast(DFA, self)
+        queries = cast(_MinimizationQueries, self)
+        accessible = queries.accessible_states()
+        reachable = queries.induced_subautomaton(accessible)
+        classes = cast(_MinimizationQueries, reachable).equivalence_classes()
+
+        class_of: dict[FAStateT, frozenset[FAStateT]] = {
+            state: group for group in classes for state in group
+        }
+        name_of: dict[frozenset[FAStateT], FAStateT] = {}
+        for group in classes:
+            if keep_original_names:
+                name_of[group] = (
+                    dfa.initial_state if dfa.initial_state in group
+                    else next(iter(group))
+                )
+            else:
+                name_of[group] = group
+
+        transitions: dict[FAStateT, dict[str, FAStateT]] = {}
+        for group in classes:
+            paths: dict[str, FAStateT] = {}
+            for state in group:
+                for symbol, destination in reachable.transitions[state].items():
+                    target = name_of[class_of[destination]]
+                    if symbol in paths and paths[symbol] != target:
+                        raise AssertionError("equivalent states have conflicting destinations")
+                    paths[symbol] = target
+            transitions[name_of[group]] = paths
+
+        final_states = {
+            name_of[group]
+            for group in classes
+            if not group.isdisjoint(reachable.final_states)
+        }
+        allow_partial = reachable.allow_partial or any(
+            len(paths) < len(reachable.input_symbols)
+            for paths in transitions.values()
+        )
+        return cast(
+            Self,
+            type(dfa)(
+                states=set(name_of.values()),
+                input_symbols=dfa.input_symbols,
+                transitions=transitions,
+                initial_state=name_of[class_of[dfa.initial_state]],
+                final_states=final_states,
+                allow_partial=allow_partial,
+            ),
+        )

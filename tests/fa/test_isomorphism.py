@@ -25,13 +25,19 @@ def _renamed_cycle() -> ExtendedDFA:
 
 
 def test_source_compatibility_renamed_structure_and_reflexivity() -> None:
-    """Analog of the mature example; extension minimize awaits #32."""
+    """An explicit renaming preserves the source structure."""
     d = _cycle()
     renamed = _renamed_cycle()
     assert d.is_isomorphic_to(d) is True
     assert d.is_isomorphic_to(renamed) is True
     assert renamed.is_isomorphic_to(d) is True
     assert type(d.is_isomorphic_to(renamed)) is bool
+
+
+def test_source_compatibility_minimized_original_names() -> None:
+    """The mature d.is_isomorphic_to(d.minimize(...)) example."""
+    d = _cycle()
+    assert d.is_isomorphic_to(d.minimize(keep_original_names=True)) is True
 
 
 def test_same_language_does_not_imply_isomorphism() -> None:

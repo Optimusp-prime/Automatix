@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #30 - Myhill-Nerode equivalence classes (VERIFIED)
+Current feature: #31/#32 - DFA minimality and minimization (VERIFIED)
 
-Next planned feature: #31 - Minimality predicate (not started)
+Next planned feature: #33 - Determinism predicate (not started)
 
-Current phase: state partition by non-distinguishability verified
+Current phase: accessible DFA quotient and minimality predicate verified
 
 ## Infrastructure
 
@@ -76,7 +76,7 @@ confirms their names and contracts.
 | 19 | Induced subautomaton | `induced_subautomaton(states)` | `SubautomatonMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_subautomaton.py` | Exact requested state set; invalid structural subsets raise `InvalidStateError`; ADR-0012. |
 | 20 | Test whether an automaton is complete | `is_complete() -> bool` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Checks actual DFA transition totality, independent of `allow_partial`; #21 remains TODO. |
 | 21 | Completion | `complete(trap_state=None) -> ExtendedDFA` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Delegates to upstream `to_complete`; fresh ExtendedDFA, optional collision-checked sink, same language. |
-| 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True explicitly deferred to #32. |
+| 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True now uses extension #32. |
 | 23 | Cartesian product of two automata | `product(other, is_final)` | `ProductMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_product.py` | Reachable tuple states only; caller selects finals; equal alphabets; upstream partial-trap convention. |
 | 24 | Language inclusion | `is_included_in(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Tests empty language of self × complement(other); equal alphabets; partial DFA supported. |
 | 25 | Language equality | `is_equivalent(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Mutual language inclusion; same-alphabet policy; no structural comparison. |
@@ -85,8 +85,8 @@ confirms their names and contracts.
 | 28 | Greatest prefix-closed sublanguage | `prefix_closed_sublanguage() -> ExtendedDFA` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Fresh ExtendedDFA with final-to-final edges; states and finals retained. |
 | 29 | Distinguishable states | `distinguishable_states() -> set[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Iterative table filling over all states; partial DFA uses analysis-only completion. |
 | 30 | Myhill–Nerode equivalence classes | `equivalence_classes() -> list[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Partition all states by non-distinguishability, including unreachable states. |
-| 31 | Test whether an automaton is minimal | TBD | TBD | TODO | — | — |
-| 32 | Minimization | TBD | TBD | TODO | — | — |
+| 31 | Test whether an automaton is minimal | `is_minimal() -> bool` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Accessible states and singleton equivalence classes. |
+| 32 | Minimization | `minimize(*, keep_original_names=False) -> ExtendedDFA` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Restrict to accessible states, then quotient by equivalent states; both naming modes. |
 | 33 | Test whether an automaton is deterministic | TBD | TBD | TODO | — | — |
 | 34 | Epsilon closure of a state or set of states | TBD | TBD | TODO | — | — |
 | 35 | Determinization | TBD | TBD | TODO | — | — |
@@ -1122,34 +1122,38 @@ confirms their names and contracts.
   `Sigma*` minus the source language, and remains an ExtendedDFA exposing
   existing extension methods. Neither the source nor the intermediate
   completed DFA is mutated. Double complementation preserves the language.
-- **Temporary mature-option limitation:** `minify=True` raises a clear
-  `NotImplementedError` until professor requirement #32. automata-lib 9.2.0
-  `DFA.minify()` was inspected and rejected as a temporary bridge: with
-  `retain_names=True` it wraps state names in frozensets rather than
-  preserving the mature example's string names, and it raises `KeyError`
-  for a valid DFA whose initial state is None. Once #32 is implemented,
-  this branch should delegate to the extension's
-  `minimize(keep_original_names=retain_names)`. #30-#32 remain TODO.
+- **Mature option resolved by #32:** `minify=True` now calls the
+  extension's `minimize(keep_original_names=retain_names)` after completion
+  and final-state inversion. The default remains `minify=False`.
+  automata-lib 9.2.0 `DFA.minify()` remains rejected as a bridge: its
+  retained names differ from the mature example, and it raised `KeyError`
+  for a valid DFA whose initial state is None during #22 inspection.
 - **Source compatibility regression:** a directly derived no-argument
   `d.complement()` case verifies `c1.accepts_input("a") is True` and the
   mature `minify=False` default by retaining an unreachable state. The
   exact mature fixture was not supplied; the test uses a minimal
-  equivalent case. The documented `minify=True` example is deferred.
-- **Tests:** 14 new functions and 28 cases in `tests/fa/test_complement.py`
+  equivalent case. The documented `minify=True, retain_names=True` behavior
+  is now covered on the shared three-state cycle analogue.
+- **Tests:** 15 functions and 29 cases in `tests/fa/test_complement.py`
   cover complete and partial DFA, exact final-state inversion, accepting
   sink, seven representative words, empty word and alphabet, double
   complement, no/all final states, None/heterogeneous states, default
-  versus explicit `minify=False`, deferred `minify=True`, immutability,
+  versus explicit `minify=False`, optional `minify=True`, immutability,
   composition and DFA-only MRO. The full suite has 627 passed, including
-  all 599 prior cases; strict mypy passes on 32 source files.
+  all 599 prior cases at initial #22 validation; #32 later added the named
+  minification regression. The current full-suite validation is recorded
+  in the #32 Feature note.
 - **Complexity:** O(|Q| × |Sigma| + V) worst-case time and
   O(|Q| × |Sigma| + M) auxiliary space, including completion, copying and
   upstream constructor validation costs V and M. Inverting final states
-  adds O(|Q|) work. No minimization runs on the supported branch.
+  adds O(|Q|) work. With `minify=True`, the extension's #32 analysis adds
+  expected O(|Q|² × |Sigma| + |Q|² × alpha(|Q|) + V) time and
+  O(|Q|² × |Sigma| + M) auxiliary space.
 - **ADR:** reuses the accepted DFA-specialization and immutable
-  reconstruction policies in ADR-0003 and ADR-0007; the deferred option
-  is documented here without adding a new architecture decision.
-- **Related requirements:** #23-#62 remain TODO, especially #32.
+  reconstruction policies in ADR-0003 and ADR-0007. The #32 integration
+  changes no accepted ADR.
+- **Related requirements:** #22 remains VERIFIED; the previously deferred
+  option is resolved by VERIFIED requirement #32.
 - **Git commit:** pending.
 
 ## #23 - Lazy synchronized DFA product
@@ -1281,9 +1285,10 @@ confirms their names and contracts.
   the relevant contract and mature reference excerpt.
 - **Mature compatibility / public API:** `is_isomorphic_to(other) -> bool`
   lives in DFA-only `IsomorphismMixin` through `ExtendedDFA`. An explicitly
-  renamed three-state cycle provides the mature-example analogue. The exact
-  `d.is_isomorphic_to(d.minimize(keep_original_names=True))` regression is
-  deferred until requirement #32 supplies extension minimization.
+  renamed three-state cycle provides the mature-example analogue. With
+  requirement #32 now implemented, the exact
+  `d.is_isomorphic_to(d.minimize(keep_original_names=True))` regression also
+  runs on this cycle.
 - **Algorithm:** reject differing state counts, alphabets or final-state
   counts; force initial-state correspondence; propagate each mapped state's
   finality, defined symbols and labeled destinations. For remaining
@@ -1460,4 +1465,81 @@ confirms their names and contracts.
   structure and changes no accepted architectural policy.
 - **Related requirements:** #31-#62 remain TODO. No `is_minimal()` or
   extension `minimize()` was added.
+- **Git commit:** pending.
+
+## #31 - DFA minimality predicate
+
+- **Professor criterion / mature clarification:** a DFA is minimal exactly
+  when every state is accessible and every Myhill–Nerode class is a
+  singleton. The accessibility condition excludes unreachable states even
+  when all states are pairwise distinguishable. The professor PDFs were not
+  accessed; the attached task text supplies the contract and reference.
+- **Public API / implementation:** `is_minimal() -> bool` in the existing
+  DFA-only `MinimizationMixin`. It compares `accessible_states()` with
+  `states` and checks the sizes of `equivalence_classes()`. It does not
+  call `minimize()`, mutate the source or add a cache.
+- **Source compatibility / tests:** the three-state mature cycle returns
+  True. Tests also cover an inaccessible state with singleton classes,
+  equivalent accessible states, a minimal partial DFA and exact bool.
+  The full suite has 706 passed; strict mypy passes on 42 source files.
+- **Complexity:** O(|Q| + T + |Q|² × |Sigma| + |Q|² × alpha(|Q|) + V)
+  expected time and O(|Q|² × |Sigma| + |Q| + |E| + M) auxiliary space,
+  including delegated accessibility and #30 class computation.
+- **ADR:** reuses accepted accessibility and partition decisions; no new
+  minimality-specific architectural decision.
+- **Related requirements:** #32 was implemented in the same authorized
+  pass; #33-#62 remain TODO.
+- **Git commit:** pending.
+
+## #32 - DFA minimization
+
+- **Professor contract / mature API:** `minimize(*,
+  keep_original_names=False) -> ExtendedDFA` in `MinimizationMixin`.
+  Remove unreachable states, merge equivalent accessible states and return
+  a fresh language-equivalent minimal DFA. This is the extension API,
+  independent of upstream `DFA.minify()`, whose naming and None-state
+  behavior were unsuitable during #22 inspection.
+- **Accessible quotient:** call `accessible_states()`, then
+  `induced_subautomaton(accessible)` and `equivalence_classes()` on that
+  restricted automaton. Build a state-to-class map, quotient transitions,
+  initial class and final classes. All original-state classes in the
+  quotient are reachable; no analysis-only trap is exported.
+- **Naming modes:** by default, each state name is the class itself as a
+  frozenset. With `keep_original_names=True`, use a member of each class,
+  preferring the original initial state for its class; no states are sorted
+  or assumed comparable. Both modes return a new ExtendedDFA even when
+  the source is already minimal.
+- **Partial DFA policy:** defined edges from equivalent class members are
+  combined by symbol, while symbols undefined for every member remain
+  absent. This preserves language and quotient reachability in cases where
+  one member lacks an edge and another leads to an empty-language class.
+  Set `allow_partial` appropriately; never expose the temporary trap from
+  #29. [ADR-0013](decisions/ADR-0013-partial-dfa-quotient-transitions.md)
+  records the durable policy.
+- **Language / immutability:** representative cases satisfy
+  `source.is_equivalent(source.minimize())` and the named variant;
+  both results satisfy `is_minimal()`. States, transitions and finals of
+  the source remain unchanged. Tests also check quotient initial/final
+  classes, exact transitions and extension composability.
+- **Source compatibility / cross-feature regressions:** the mature
+  three-state cycle returns three singleton frozensets by default and
+  `['0', '1', '2']` with original names, with `is_minimal() is True`.
+  The exact #26 `d.is_isomorphic_to(d.minimize(keep_original_names=True))`
+  regression now passes. #22 `complement(minify=True,
+  retain_names=True)` now uses extension minimization and reproduces the
+  named three-state result; its default remains unminimized.
+- **Tests:** eight new tests in `tests/fa/test_minimization.py` plus the
+  #22 and #26 regressions cover merging, inaccessible removal, both names,
+  complete/partial DFA, different missing edges, None/heterogeneous states,
+  language preservation, minimality, immutability and source examples.
+  An additional development check minimized 150 random four-state partial
+  DFA equivalently in both modes, with all results minimal. The full suite
+  has 706 passed, including all 696 prior cases; strict mypy passes on
+  42 source files.
+- **Complexity:** O(|Q| + T + |R|² × |Sigma| +
+  |R|² × alpha(|R|) + V) expected time and
+  O(|R|² × |Sigma| + |Q| + |E| + M) auxiliary space. R is the accessible
+  state set; V/M cover restrictions, quotient construction and validation.
+- **Related requirements:** #33-#62 remain TODO. No NFA determinization
+  or other future algorithm was added.
 - **Git commit:** pending.

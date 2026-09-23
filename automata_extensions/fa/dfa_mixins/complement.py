@@ -11,6 +11,12 @@ class _CompletableDFA(Protocol):
     def complete(self) -> DFA: ...
 
 
+class _MinimizableDFA(Protocol):
+    """Extension minimization applied only when requested."""
+
+    def minimize(self, *, keep_original_names: bool = False) -> DFA: ...
+
+
 class ComplementMixin:
     """Construct the complement of a deterministic finite automaton."""
 
@@ -27,41 +33,33 @@ class ComplementMixin:
         Parameters
         ----------
         retain_names : bool, default: False
-            Reserved for the optional minimization branch.
+            Keep a representative original state name when minimizing.
         minify : bool, default: False
-            Request minimization after complementing. This option awaits
-            Automatix professor requirement #32.
+            Minimize the complemented DFA using the extension's method.
 
         Returns
         -------
         Self
             New complete ExtendedDFA accepting the complement language.
 
-        Raises
-        ------
-        NotImplementedError
-            If ``minify=True`` is requested before requirement #32.
-
         Complexity
         ----------
         O(|Q| × |Sigma| + V) time and O(|Q| × |Sigma| + M) auxiliary space
-        in the worst case, including completion and new DFA validation.
-        V and M are upstream constructor/validation time and memory.
+        without minimization, including completion and validation.
+        With ``minify=True``, add the extension minimization cost:
+        O(|Q|² × |Sigma| + |Q|² × alpha(|Q|) + V) expected time and
+        O(|Q|² × |Sigma| + M) auxiliary space. V/M cover construction and
+        validation in both phases.
 
         References
         ----------
         Professor requirement #22: complete, then invert final states.
         The supplied mature reference specifies ``minify=False`` by default.
-        The source PDFs were not accessed.
+        Requirement #32 supplies optional extension minimization. The source
+        PDFs were not accessed.
         """
-        if minify:
-            raise NotImplementedError(
-                "minify=True requires Automatix requirement #32 minimization, "
-                "which is not implemented yet."
-            )
-
         completed = cast(_CompletableDFA, self).complete()
-        return cast(
+        result = cast(
             Self,
             type(completed)(
                 states=completed.states,
@@ -72,3 +70,11 @@ class ComplementMixin:
                 allow_partial=False,
             ),
         )
+        if minify:
+            return cast(
+                Self,
+                cast(_MinimizableDFA, result).minimize(
+                    keep_original_names=retain_names
+                ),
+            )
+        return result
