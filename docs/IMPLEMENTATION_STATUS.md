@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #25 - DFA language equality (VERIFIED)
+Current feature: #26 - DFA isomorphism (VERIFIED)
 
-Next planned feature: #26 - Automaton isomorphism (not started)
+Next planned feature: #27 - Prefix-closed language test (not started)
 
-Current phase: language equality via mutual inclusion verified
+Current phase: structural DFA isomorphism by constrained bijection verified
 
 ## Infrastructure
 
@@ -80,7 +80,7 @@ confirms their names and contracts.
 | 23 | Cartesian product of two automata | `product(other, is_final)` | `ProductMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_product.py` | Reachable tuple states only; caller selects finals; equal alphabets; upstream partial-trap convention. |
 | 24 | Language inclusion | `is_included_in(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Tests empty language of self × complement(other); equal alphabets; partial DFA supported. |
 | 25 | Language equality | `is_equivalent(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Mutual language inclusion; same-alphabet policy; no structural comparison. |
-| 26 | Automaton isomorphism | TBD | TBD | TODO | — | — |
+| 26 | Automaton isomorphism | `is_isomorphic_to(other) -> bool` | `IsomorphismMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_isomorphism.py` | State bijection preserving initial state, finals and labeled transitions, including unreachable states. |
 | 27 | Prefix-closed language test | TBD | TBD | TODO | — | — |
 | 28 | Greatest prefix-closed sublanguage | TBD | TBD | TODO | — | — |
 | 29 | Distinguishable states | TBD | TBD | TODO | — | — |
@@ -1269,4 +1269,45 @@ confirms their names and contracts.
   established complement, product and inclusion policies.
 - **Related requirements:** #26-#62 remain TODO. Automaton isomorphism (#26)
   is distinct from language equivalence and was not implemented.
+- **Git commit:** pending.
+
+## #26 - DFA isomorphism
+
+- **Professor contract / mathematical meaning:** two DFA are isomorphic iff
+  a bijection between all their states preserves the initial state, final
+  states and every labeled transition, including whether a transition is
+  absent. This compares automaton structure, unlike #25 language equality.
+  The professor PDFs were not accessed; the attached task text supplies
+  the relevant contract and mature reference excerpt.
+- **Mature compatibility / public API:** `is_isomorphic_to(other) -> bool`
+  lives in DFA-only `IsomorphismMixin` through `ExtendedDFA`. An explicitly
+  renamed three-state cycle provides the mature-example analogue. The exact
+  `d.is_isomorphic_to(d.minimize(keep_original_names=True))` regression is
+  deferred until requirement #32 supplies extension minimization.
+- **Algorithm:** reject differing state counts, alphabets or final-state
+  counts; force initial-state correspondence; propagate each mapped state's
+  finality, defined symbols and labeled destinations. For remaining
+  unreachable components, try injective candidates with matching finality,
+  outgoing-symbol sets and self-loop symbols, backtracking on conflict.
+  No state names are sorted or compared. Partial DFA are not completed.
+- **Input / immutability:** accepts another DFA and returns exactly bool.
+  Different alphabets return False because this is a structural predicate.
+  Both automata remain unchanged; no cache is added.
+- **Tests:** nine new tests in `tests/fa/test_isomorphism.py` cover
+  reflexivity, renamed cycles, equal languages with different structures,
+  state/final/initial/edge mismatches, alphabet mismatch, partial edges,
+  self-loops, unreachable components, None/tuple/heterogeneous states,
+  immutability, DFA-only MRO and the source-compatibility analogue. A
+  separate development check matched 200 randomly generated three-state
+  pairs against exhaustive bijection enumeration. The full suite has
+  666 passed, including all 657 previous cases; strict mypy passes on
+  38 source files.
+- **Complexity:** one mapping propagation is O(|Q| × |Sigma|). The
+  backtracking worst case is combinatorial, bounded here by
+  O(|Q|! × |Q|² × |Sigma|) time and O(|Q|² + |Q| × |Sigma|) auxiliary
+  space. Recursive search remains subject to Python's recursion limit.
+- **ADR:** no new ADR; this is a DFA-specific analysis consistent with
+  ADR-0003 and does not change an accepted architectural policy.
+- **Related requirements:** #27-#62 remain TODO, including #30-#32.
+  No prefix or minimization APIs were introduced.
 - **Git commit:** pending.
