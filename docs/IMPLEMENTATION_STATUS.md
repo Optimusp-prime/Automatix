@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #17 - Reachable states from a given state (VERIFIED)
+Current feature: #18 - Direct predecessors of a state (VERIFIED)
 
-Next planned feature: #18 - Predecessors of a state (not started)
+Next planned feature: #19 - Induced subautomaton (not started)
 
-Current phase: arbitrary-state reachability verified through the existing DFS
+Current phase: direct inverse-graph neighborhood verified through the common FA layer
 
 ## Infrastructure
 
@@ -72,7 +72,7 @@ confirms their names and contracts.
 | 15 | Word recognition | `accepts(word) -> bool` | WordMixin via ExtendedFA; GNFA override | VERIFIED | `tests/fa/test_word.py` | Delegates to `accepts_input`; GNFA raises `NotImplementedError` because upstream cannot read words. |
 | 16 | Execution trace of a word | `execution_trace(word: str)` | `WordMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_word.py` | Configurations from upstream; rejected words retain their yielded trace; partial DFA may emit `None`. |
 | 17 | States reachable from a given state | `reachable_states(state) -> FrozenSet[FAStateT]` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | Delegates to `dfs(state)`; includes start; inherits `InvalidStateError`. |
-| 18 | Predecessors of a state | TBD | TBD | TODO | — | — |
+| 18 | Predecessors of a state | `predecessors_graph(state) -> FrozenSet[FAStateT]` | `GraphMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_graph.py` | Direct neighbors from `_build_predecessors`; avoids upstream DFA word API collision. |
 | 19 | Induced subautomaton | TBD | TBD | TODO | — | — |
 | 20 | Test whether an automaton is complete | TBD | TBD | TODO | — | — |
 | 21 | Completion | TBD | TBD | TODO | — | — |
@@ -916,4 +916,48 @@ confirms their names and contracts.
   the common layer and immutable-set policy. No new ADR was needed.
 - **Related requirements:** #18-#62 remain TODO. No public predecessor or
   induced-subautomaton API was added.
+- **Git commit:** pending.
+
+## #18 - Predecessors of a state
+
+- **Specification / French meaning:** calculate the direct incoming
+  neighbors of a state (predecesseurs directs), independently of transition
+  labels. The professor information came from the task prompt; the PDFs
+  were not accessed. Indirect ancestors are not included.
+- **Public API / name choice:**
+  `predecessors_graph(state) -> FrozenSet[FAStateT]`. The `_graph` suffix
+  avoids shadowing upstream `DFA.predecessors(input_str, ...)`, which
+  enumerates lexicographically preceding words rather than states.
+- **Placement / inverse adjacency:** `GraphMixin` lives in the existing
+  common `fa/fa_mixins/graph.py` and is composed through `ExtendedFA`.
+  It validates state, calls the accepted `_build_predecessors(self)` once,
+  and freezes only the tuple at that state. The private builders are not
+  moved or reimplemented; there is no reverse DFS, cache or mutation.
+- **DFA/NFA/GNFA semantics:** any real incoming edge counts. Parallel
+  edges collapse to one source; self-loops include the queried state.
+  NFA multi-destinations and epsilon transitions count as direct edges.
+  GNFA real regex and empty-string labels count; None labels do not.
+- **Invalid-state policy:** absent hashable and unhashable state values
+  raise upstream `InvalidStateError`, matching the common traversal
+  start-state contract. None is an ordinary valid state when present.
+- **Tests:** 11 new functions and 23 cases in `tests/fa/test_graph.py`
+  cover one/multiple/no predecessors, direct versus indirect ancestry,
+  parallel edges, self-loops and cycles, inaccessible sources, DFA and
+  partial DFA, NFA multi-destinations and epsilon, GNFA real/None labels,
+  None and heterogeneous states, invalid inputs, immutable return type,
+  source immutability, common MRO and intact upstream word enumeration.
+  The full suite has 533 passed, including all 510 previous cases;
+  strict mypy passes on 25 source files.
+- **Complexity:** O(|Q| + T) time and O(|Q| + |E|) auxiliary space per
+  call, including global inverse-adjacency construction and freezing the
+  direct neighbors, with expected constant-time hashing and equality.
+  Q is all states, E emitted edges and T exhausts `iter_transitions`,
+  including empty NFA target entries and stored GNFA None slots.
+- **ADR:** [ADR-0011](decisions/ADR-0011-direct-graph-neighborhood.md)
+  records the new common GraphMixin domain and name-collision policy.
+  It reuses [ADR-0003](decisions/ADR-0003-common-extended-fa-layer.md),
+  [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md) and
+  [ADR-0006](decisions/ADR-0006-reverse-graph-foundation.md).
+- **Related requirements:** #19-#62 remain TODO. No public
+  `successors_graph` or induced-subautomaton API was added.
 - **Git commit:** pending.
