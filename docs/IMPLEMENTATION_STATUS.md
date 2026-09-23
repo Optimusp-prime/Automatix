@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #10 - Strongly connected components (VERIFIED)
+Current feature: #11 - Cycle existence detection (VERIFIED)
 
-Next planned feature: #11 - Cycle existence detection (not started)
+Next planned feature: #12 - Cycle detection from a given state (not started)
 
-Current phase: SCC analysis verified; awaiting the next feature
+Current phase: global cycle detection verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -65,7 +65,7 @@ confirms their names and contracts.
 | 8 | Trim an automaton | `trim()` | `AccessibilityMixin` with private concrete restrictions | VERIFIED | `tests/fa/test_trim.py` | Same-type new object; empty-language representatives; ADR-0007 |
 | 9 | Test whether an automaton is trim | `is_trim() -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Literal states == useful_states, including empty-language representatives |
 | 10 | Strongly connected components | `strongly_connected_components()` | `SCCMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_scc.py` | Tarjan; all states; list of frozensets; ADR-0008 |
-| 11 | Cycle existence detection | TBD | TBD | TODO | — | — |
+| 11 | Cycle existence detection | `has_cycle() -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | Global DFS back edge; all states; ADR-0009 |
 | 12 | Cycle detection from a given state | TBD | TBD | TODO | — | — |
 | 13 | Empty-language decision | TBD | TBD | TODO | — | — |
 | 14 | Infinite-language decision | TBD | TBD | TODO | — | — |
@@ -610,4 +610,37 @@ confirms their names and contracts.
 - **Related requirements:** #11 and #12 concern cycle detection and remain
   TODO, as do all other requirements #11-#62. Neither cycle predicate nor
   `is_strongly_connected()` is implemented.
+- **Git commit:** pending.
+
+## #11 - Cycle existence detection
+
+- **Specification / French meaning:** detect the existence of a directed
+  cycle (detection d'existence de cycle) via a DFS back edge. The professor
+  information came from the task prompt; the PDFs were not accessed.
+- **Algorithm:** recursive DFS with WHITE (unseen), GRAY (active path), and
+  BLACK (fully explored) states. An edge to GRAY is a back edge and proves a
+  cycle. An edge to BLACK does not. A self-loop is a cycle.
+- **Public API:** `has_cycle() -> bool`, without parameters.
+- **Global graph semantics:** the search covers every state, including
+  components inaccessible from the initial state. It builds adjacency once
+  with `_build_successors` and does not delegate to SCC analysis.
+- **DFA/NFA/GNFA behavior:** labels are ignored; NFA multiple destinations
+  and epsilon transitions count as edges, while GNFA None-valued cells do not.
+- **Tests:** 8 test functions, 22 parametrized cases in
+  `tests/fa/test_cycle.py` cover one-state graphs, self-loop, chains, cycles
+  of two and three states, DAG edges to BLACK, inaccessible cycles, partial
+  DFA, NFA branching and epsilon, GNFA None/epsilon labels, None and
+  heterogeneous states, exact bool result, immutability, fresh graph scans,
+  shared inheritance and no SCC delegation. The full suite has 364 passed,
+  including all 342 previous cases. Strict mypy passes on 21 source files.
+- **Complexity:** O(|Q| + T) time and O(|Q| + |E|) space, assuming
+  constant-time hashing and equality. Q includes all states, E all emitted
+  transitions including parallel edges, and T exhausts iter_transitions,
+  including empty NFA target entries and GNFA None slots.
+- **Recursion limitation:** sufficiently deep graphs may exceed Python's
+  recursion limit; the limit is not changed.
+- **ADR:** [ADR-0009](decisions/ADR-0009-cycle-analysis.md), reusing the
+  [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md) graph layer.
+- **Related requirements:** #12 (cycle from a given state) and #13-#62 remain
+  TODO. No `has_cycle_from()`, `is_empty()` or `is_finite()` is added.
 - **Git commit:** pending.
