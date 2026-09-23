@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #26 - DFA isomorphism (VERIFIED)
+Current feature: #27 - Prefix-closed DFA language test (VERIFIED)
 
-Next planned feature: #27 - Prefix-closed language test (not started)
+Next planned feature: #28 - Greatest prefix-closed sublanguage (not started)
 
-Current phase: structural DFA isomorphism by constrained bijection verified
+Current phase: prefix-closure predicate via useful states verified
 
 ## Infrastructure
 
@@ -81,7 +81,7 @@ confirms their names and contracts.
 | 24 | Language inclusion | `is_included_in(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Tests empty language of self × complement(other); equal alphabets; partial DFA supported. |
 | 25 | Language equality | `is_equivalent(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Mutual language inclusion; same-alphabet policy; no structural comparison. |
 | 26 | Automaton isomorphism | `is_isomorphic_to(other) -> bool` | `IsomorphismMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_isomorphism.py` | State bijection preserving initial state, finals and labeled transitions, including unreachable states. |
-| 27 | Prefix-closed language test | TBD | TBD | TODO | — | — |
+| 27 | Prefix-closed language test | `is_prefix_closed() -> bool` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Every useful state must be final; empty language is prefix-closed. |
 | 28 | Greatest prefix-closed sublanguage | TBD | TBD | TODO | — | — |
 | 29 | Distinguishable states | TBD | TBD | TODO | — | — |
 | 30 | Myhill–Nerode equivalence classes | TBD | TBD | TODO | — | — |
@@ -1310,4 +1310,36 @@ confirms their names and contracts.
   ADR-0003 and does not change an accepted architectural policy.
 - **Related requirements:** #27-#62 remain TODO, including #30-#32.
   No prefix or minimization APIs were introduced.
+- **Git commit:** pending.
+
+## #27 - Prefix-closed DFA language predicate
+
+- **Professor criterion / mathematical meaning:** a DFA language is
+  prefix-closed exactly when every useful state is final. Useful states
+  are those on some accepting path; accessible dead states and unreachable
+  states do not affect the answer. The professor PDFs were not accessed;
+  the attached task text supplies this criterion and the mature excerpt.
+- **Mature API / placement:** `is_prefix_closed() -> bool` in DFA-only
+  `PrefixMixin` through `ExtendedDFA`. The related
+  `prefix_closed_sublanguage()` transformation belongs to #28 and is absent.
+- **Implementation:** reuse `useful_states()` and test whether its
+  `frozenset` is a subset of `final_states`. No word enumeration, new
+  automaton, graph traversal, cache or mutation is introduced.
+- **Boundary semantics:** the empty language has no useful states and is
+  prefix-closed vacuously. Every nonempty prefix-closed language contains
+  epsilon; a useful but nonfinal initial state makes the predicate False.
+- **Source compatibility / tests:** a three-state cycle reproduces the
+  mature `d.is_prefix_closed() is False` observation on an equivalent
+  fixture. Seven tests in `tests/fa/test_prefix.py` cover this, a useful
+  nonfinal state, empty language and empty trim representative, epsilon
+  only, an accessible nonuseful sink, unreachable nonfinal state, partial
+  DFA with a cycle, None/heterogeneous states, exact bool, immutability
+  and DFA-only MRO. The full suite has 673 passed, including all 666
+  previous cases; strict mypy passes on 40 source files.
+- **Complexity:** O(|Q| + T) expected time and O(|Q| + |E|) auxiliary
+  space, including both analyses inside `useful_states()` and the final
+  O(|Q|) subset test. No result is cached.
+- **ADR:** no new ADR; reuses the accepted DFA specialization and
+  accessibility analysis policies.
+- **Related requirements:** #28-#62 remain TODO. No #28 API was added.
 - **Git commit:** pending.
