@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #11 - Cycle existence detection (VERIFIED)
+Current feature: #12 - Cycle detection from a given state (VERIFIED)
 
-Next planned feature: #12 - Cycle detection from a given state (not started)
+Next planned feature: #13 - Empty-language decision (not started)
 
-Current phase: global cycle detection verified; awaiting the next feature
+Current phase: cycle detection from a state verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -66,7 +66,7 @@ confirms their names and contracts.
 | 9 | Test whether an automaton is trim | `is_trim() -> bool` | `AccessibilityMixin` | VERIFIED | `tests/fa/test_accessibility.py` | Literal states == useful_states, including empty-language representatives |
 | 10 | Strongly connected components | `strongly_connected_components()` | `SCCMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_scc.py` | Tarjan; all states; list of frozensets; ADR-0008 |
 | 11 | Cycle existence detection | `has_cycle() -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | Global DFS back edge; all states; ADR-0009 |
-| 12 | Cycle detection from a given state | TBD | TBD | TODO | — | — |
+| 12 | Cycle detection from a given state | `has_cycle_from(state) -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | DFS back edge only from supplied state; InvalidStateError |
 | 13 | Empty-language decision | TBD | TBD | TODO | — | — |
 | 14 | Infinite-language decision | TBD | TBD | TODO | — | — |
 | 15 | Word recognition | TBD | TBD | TODO | — | — |
@@ -643,4 +643,50 @@ confirms their names and contracts.
   [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md) graph layer.
 - **Related requirements:** #12 (cycle from a given state) and #13-#62 remain
   TODO. No `has_cycle_from()`, `is_empty()` or `is_finite()` is added.
+- **Git commit:** pending.
+
+## #12 - Cycle detection from a given state
+
+- **Specification / French meaning:** detect whether a directed cycle is
+  reachable from a given state (detection d'existence de cycle a partir d'un
+  etat). The professor information came from the task prompt; the PDFs were
+  not accessed. The cycle need not contain the starting state.
+- **Difference from `has_cycle()`:** the global #11 query starts DFS from
+  every unvisited state; this query starts only from the supplied state.
+  Thus a cycle elsewhere makes the global result True but the local result
+  False.
+- **Public API:** `has_cycle_from(state: FAStateT) -> bool`. Explicit None
+  denotes the actual None state when present. No default start is provided.
+- **Invalid-state contract:** absent hashable and unhashable states raise
+  upstream `InvalidStateError`, matching `dfs(start_state)`. A valid None
+  state is accepted.
+- **Algorithm / reachable-subgraph semantics:** a private `_has_back_edge`
+  helper shares the WHITE/GRAY/BLACK recursive DFS with `has_cycle()`. An
+  edge to GRAY proves a cycle; an edge to BLACK does not. One root restricts
+  the DFS to its reachable subgraph. `_build_successors` still builds global
+  adjacency once per call. No SCC shortcut, cache, mutation or public
+  `reachable_states()` API is added.
+- **DFA/NFA/GNFA behavior:** labels are ignored; NFA multiple destinations
+  and epsilon transitions are edges; GNFA None-labelled cells are not.
+- **Tests:** 9 new functions, 23 new parametrized cases added to
+  `tests/fa/test_cycle.py`. They cover isolated states, self-loop, chain,
+  start-containing and downstream cycles, global-but-unreachable cycles,
+  DAG edges to BLACK, partial DFA, NFA branching and epsilon, GNFA, valid
+  None and heterogeneous states, invalid and unhashable starts, exact bool,
+  immutability, one adjacency build per call, MRO and no SCC delegation.
+  The full suite has 387 passed, including all 364 previous cases. Strict
+  mypy passes on 21 source files.
+- **Complexity:** global adjacency construction is O(|Q| + T) time and
+  O(|Q| + |E|) space. DFS on reachable states adds
+  O(|Q_reached| + |E_reached|) time and O(|Q_reached|) space. Overall:
+  O(|Q| + T) time and O(|Q| + |E|) space, assuming constant-time hashing
+  and equality. T exhausts iter_transitions, including empty NFA target
+  entries and GNFA stored None slots. Deep paths may hit Python's
+  recursion limit.
+- **ADR:** [ADR-0009](decisions/ADR-0009-cycle-analysis.md) supplies the
+  CycleMixin and back-edge policy;
+  [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md) supplies the
+  graph and start-state conventions. Neither accepted ADR is rewritten.
+- **Related requirements:** #13-#62 remain TODO. No #17 reachable-states
+  method or language decision is implemented.
 - **Git commit:** pending.
