@@ -28,6 +28,14 @@ class _InitialTraversal(Protocol):
         ...
 
 
+class _StateTraversal(Protocol):
+    """Traversal interface for reachability from an explicit state."""
+
+    def dfs(self, start_state: FAStateT) -> list[FAStateT]:
+        """Return states discovered from the supplied start state."""
+        ...
+
+
 class _AccessibleStatesQuery(Protocol):
     """Read-only set query required by the accessibility predicate."""
 
@@ -132,6 +140,51 @@ class AccessibilityMixin:
         ADR-0005: accessibility analysis layer and immutable result contract.
         """
         return frozenset(self.dfs())
+
+    def reachable_states(
+        self: _StateTraversal, state: FAStateT
+    ) -> FrozenSet[FAStateT]:
+        """Return all states reachable from a given state.
+
+        Reachability follows zero or more directed transitions, so the
+        supplied state is always included. Labels are ignored, including
+        NFA epsilon edges; GNFA None labels do not create edges. The
+        result is independent of traversal discovery order.
+
+        Parameters
+        ----------
+        state : FAStateT
+            Starting state. None is an ordinary state value, not a default.
+
+        Returns
+        -------
+        FrozenSet[FAStateT]
+            Immutable set of states reachable from state, without duplicates.
+
+        Raises
+        ------
+        InvalidStateError
+            If state is absent from the automaton or is unhashable, as in
+            ``dfs(state)``.
+
+        Complexity
+        ----------
+        The delegated DFS builds global adjacency in O(|Q| + T) time and
+        O(|Q| + |E|) space, then traverses the reachable subgraph. Q is all
+        states, E the emitted transitions and T the cost of exhausting
+        ``iter_transitions`` (including empty NFA target entries and stored
+        GNFA None labels). Freezing the DFS list adds O(|Q_reached|) time
+        and space. Overall: O(|Q| + T) time and O(|Q| + |E|) space, assuming
+        constant-time state hashing and equality. No cache is added.
+
+        References
+        ----------
+        Professor requirement #17 and reference AccessibilityMixin excerpt
+        supplied in the task prompt; the source PDFs were not accessed.
+        ADR-0004: graph traversal foundation.
+        ADR-0005: immutable accessibility-set contract.
+        """
+        return frozenset(self.dfs(state))
 
     def is_accessible(
         self: _AccessibleStatesQuery, state: FAStateT

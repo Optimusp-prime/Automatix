@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #16 - Execution trace of a word (VERIFIED for DFA/NFA; GNFA unsupported upstream)
+Current feature: #17 - Reachable states from a given state (VERIFIED)
 
-Next planned feature: #17 - States reachable from a given state (not started)
+Next planned feature: #18 - Predecessors of a state (not started)
 
-Current phase: word trace verified through upstream stepwise reading; GNFA direct reading unavailable
+Current phase: arbitrary-state reachability verified through the existing DFS
 
 ## Infrastructure
 
@@ -71,7 +71,7 @@ confirms their names and contracts.
 | 14 | Infinite-language decision | `is_finite() -> bool` | `CycleMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_language_analysis.py` | DFA/NFA productive useful SCC; GNFA raises NotImplementedError by agreed scope; ADR-0010 |
 | 15 | Word recognition | `accepts(word) -> bool` | WordMixin via ExtendedFA; GNFA override | VERIFIED | `tests/fa/test_word.py` | Delegates to `accepts_input`; GNFA raises `NotImplementedError` because upstream cannot read words. |
 | 16 | Execution trace of a word | `execution_trace(word: str)` | `WordMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_word.py` | Configurations from upstream; rejected words retain their yielded trace; partial DFA may emit `None`. |
-| 17 | States reachable from a given state | TBD | TBD | TODO | — | — |
+| 17 | States reachable from a given state | `reachable_states(state) -> FrozenSet[FAStateT]` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | Delegates to `dfs(state)`; includes start; inherits `InvalidStateError`. |
 | 18 | Predecessors of a state | TBD | TBD | TODO | — | — |
 | 19 | Induced subautomaton | TBD | TBD | TODO | — | — |
 | 20 | Test whether an automaton is complete | TBD | TBD | TODO | — | — |
@@ -869,4 +869,51 @@ confirms their names and contracts.
   are recorded here; no new cross-feature architectural ADR was needed.
 - **Related requirements:** #17-#62 remain TODO. No reachable-states API,
   transition-triplet trace, animation or visualization was introduced.
+- **Deferred enhancement (outside professor requirements):** a future
+  `execution_trace(word, *, format="transitions")` option, or equivalent
+  separate API, could provide `(configuration_before, symbol,
+  configuration_after)` events for web animation. This is backlog only:
+  the current #16 API and its verified configuration-sequence contract are
+  unchanged, with no implementation or tests for the proposed format.
+- **Git commit:** pending.
+
+## #17 - Reachable states from a given state
+
+- **Specification / French meaning:** calculate all states reachable by a
+  directed path from an arbitrary supplied state (etats atteignables depuis
+  un etat donne). The starting state belongs by the length-zero path.
+  The professor information came from the task prompt; the PDFs were not
+  accessed.
+- **Public API / placement:** `reachable_states(state) -> FrozenSet[FAStateT]`
+  in `AccessibilityMixin` through `ExtendedFA`. The immutable set has no
+  discovery-order or duplicate-state contract.
+- **Relation to `accessible_states()`:** reaching from `initial_state`
+  returns exactly `accessible_states()`. Unlike that query, an arbitrary
+  start can belong to a component inaccessible from the initial state.
+- **DFS reuse / implementation:** return `frozenset(self.dfs(state))` using
+  the established iterative default. No adjacency builder, graph parsing,
+  DFS loop, cache or source mutation is added.
+- **Invalid-state behavior:** upstream `InvalidStateError` from `dfs(state)`
+  covers absent hashable and unhashable starts. Explicit `None` selects the
+  real state None when present; it never means the default initial state.
+- **DFA/NFA/GNFA semantics:** directed DFA transitions, all NFA destinations
+  including epsilon, and GNFA real labels including `""` follow the common
+  DFS graph foundation. GNFA `None` labels do not create edges.
+- **Tests:** 10 new functions and 25 parametrized cases in
+  `tests/fa/test_accessibility.py` cover the initial/intermediate/isolated
+  starts, branches, cycles and self-loops, inaccessible components,
+  partial DFA, NFA branching and epsilon, GNFA present/absent edges,
+  None and heterogeneous states, invalid inputs, exact frozenset type,
+  no duplicates and immutability. The full suite has 510 passed,
+  including all 485 prior cases; strict mypy passes on 24 source files.
+- **Complexity:** delegated global adjacency construction plus DFS and
+  freezing cost O(|Q| + T) time and O(|Q| + |E|) space, assuming constant-time
+  hashing/equality. Q is all states, E emitted transitions, and T exhausts
+  `iter_transitions`, including empty NFA targets and GNFA None slots.
+- **ADR:** [ADR-0004](decisions/ADR-0004-graph-traversal-foundation.md)
+  provides DFS and the start-state contract;
+  [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md) provides
+  the common layer and immutable-set policy. No new ADR was needed.
+- **Related requirements:** #18-#62 remain TODO. No public predecessor or
+  induced-subautomaton API was added.
 - **Git commit:** pending.

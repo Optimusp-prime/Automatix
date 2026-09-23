@@ -4,6 +4,7 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
+from automata.base.exceptions import InvalidStateError
 from automata.fa.fa import FAStateT
 
 from automata_extensions.fa import (
@@ -929,3 +930,143 @@ def test_is_trim_preserves_source(
         name: getattr(trim_candidate, name) for name in attributes
     } == before
     assert vars(trim_candidate) == dictionary_before
+
+
+def test_reachable_from_initial_matches_accessible_states(
+    automaton: ExtendedFA,
+) -> None:
+    """The initial-state specialization agrees across DFA, NFA and GNFA."""
+    result = automaton.reachable_states(automaton.initial_state)
+    assert type(result) is frozenset
+    assert result == automaton.accessible_states()
+    assert result == frozenset({"s", "a", "b"})
+    assert len(result) == len(automaton.dfs(automaton.initial_state))
+
+
+def test_reachable_from_isolated_final_includes_start(
+    automaton: ExtendedFA,
+) -> None:
+    """A zero-edge path includes a state unreachable from the initial one."""
+    assert "f" not in automaton.accessible_states()
+    assert automaton.reachable_states("f") == frozenset({"f"})
+
+
+@pytest.mark.parametrize(
+    ("start", "expected"),
+    [("q0", {"q0", "q1", "q2"}), ("q1", {"q1", "q2"}), ("q2", {"q2"})],
+)
+def test_reachable_dfa_chain_from_each_state(
+    start: str, expected: set[str]
+) -> None:
+    dfa = ExtendedDFA(
+        states={"q0", "q1", "q2", "isolated"},
+        input_symbols={"a"},
+        transitions={"q0": {"a": "q1"}, "q1": {"a": "q2"},
+                     "q2": {}, "isolated": {}},
+        initial_state="q0", final_states={"q2"}, allow_partial=True,
+    )
+    result = dfa.reachable_states(start)
+    assert result == frozenset(expected)
+    assert start in result
+    assert "isolated" not in result
+
+
+def test_reachable_dfa_branching_self_loop_and_cycle() -> None:
+    dfa = ExtendedDFA(
+        states={"s", "a", "b", "other"}, input_symbols={"0", "1"},
+        transitions={
+            "s": {"0": "a", "1": "other"},
+            "a": {"0": "a", "1": "b"},
+            "b": {"0": "a"},
+            "other": {},
+        },
+        initial_state="s", final_states={"b"}, allow_partial=True,
+    )
+    assert dfa.reachable_states("a") == frozenset({"a", "b"})
+    assert dfa.reachable_states("other") == frozenset({"other"})
+    assert dfa.reachable_states("s") == dfa.states
+
+
+def test_reachable_in_component_inaccessible_from_initial() -> None:
+    dfa = ExtendedDFA(
+        states={"q0", "q1", "x", "y"}, input_symbols={"a"},
+        transitions={
+            "q0": {"a": "q1"}, "q1": {},
+            "x": {"a": "y"}, "y": {"a": "x"},
+        },
+        initial_state="q0", final_states={"q1"}, allow_partial=True,
+    )
+    assert dfa.accessible_states() == frozenset({"q0", "q1"})
+    assert dfa.reachable_states("x") == frozenset({"x", "y"})
+
+
+@pytest.mark.parametrize("invalid", ["missing", ["unhashable"]])
+def test_reachable_invalid_state_matches_dfs(
+    automaton: ExtendedFA, invalid: FAStateT
+) -> None:
+    with pytest.raises(InvalidStateError):
+        automaton.dfs(invalid)
+    with pytest.raises(InvalidStateError):
+        automaton.reachable_states(invalid)
+
+
+def test_reachable_nfa_multiple_destinations_and_epsilon_cycle() -> None:
+    nfa = ExtendedNFA(
+        states={0, 1, 2, 3, 4}, input_symbols={"a"},
+        transitions={
+            0: {"a": {1, 2}},
+            1: {"": {3}},
+            2: {"": {3}},
+            3: {"a": {1}},
+        },
+        initial_state=0, final_states={3},
+    )
+    assert nfa.reachable_states(0) == frozenset({0, 1, 2, 3})
+    assert nfa.reachable_states(2) == frozenset({1, 2, 3})
+    assert nfa.reachable_states(1) == frozenset({1, 3})
+    assert 4 not in nfa.reachable_states(0)
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [(None, {"s"}), ("", {"s", "f"}), ("a*", {"s", "f"})],
+)
+def test_reachable_gnfa_respects_absent_and_present_edges(
+    label: str | None, expected: set[str]
+) -> None:
+    gnfa = ExtendedGNFA(
+        states={"s", "f"}, input_symbols={"a"},
+        transitions={"s": {"f": label}},
+        initial_state="s", final_state="f",
+    )
+    assert gnfa.reachable_states("s") == frozenset(expected)
+    assert gnfa.reachable_states("f") == frozenset({"f"})
+
+
+def test_reachable_none_and_heterogeneous_states() -> None:
+    pair = (1, "x")
+    frozen = frozenset({2})
+    nfa = ExtendedNFA(
+        states={"initial", None, 7, pair, frozen}, input_symbols={"a"},
+        transitions={"initial": {}, None: {"a": {7, frozen}}, 7: {"": {pair}},
+                     frozen: {"": {pair}}},
+        initial_state="initial", final_states={pair},
+    )
+    result = nfa.reachable_states(None)
+    assert type(result) is frozenset
+    assert result == frozenset({None, 7, pair, frozen})
+    assert "initial" not in result
+    assert result == frozenset(nfa.dfs(None))
+
+
+def test_reachable_states_preserves_source(automaton: ExtendedFA) -> None:
+    states = deepcopy(automaton.states)
+    transitions = deepcopy(automaton.transitions)
+    final_states = deepcopy(automaton.final_states)
+    input_symbols = deepcopy(automaton.input_symbols)
+    for start in (automaton.initial_state, "a", "f"):
+        automaton.reachable_states(start)
+    assert automaton.states == states
+    assert automaton.transitions == transitions
+    assert automaton.final_states == final_states
+    assert automaton.input_symbols == input_symbols
