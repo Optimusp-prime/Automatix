@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #15 - Word recognition (VERIFIED for DFA/NFA; GNFA unsupported upstream)
+Current feature: #16 - Execution trace of a word (VERIFIED for DFA/NFA; GNFA unsupported upstream)
 
-Next planned feature: #16 - Execution trace (not started)
+Next planned feature: #17 - States reachable from a given state (not started)
 
-Current phase: word recognition verified through upstream delegation; GNFA direct recognition unavailable
+Current phase: word trace verified through upstream stepwise reading; GNFA direct reading unavailable
 
 ## Infrastructure
 
@@ -70,7 +70,7 @@ confirms their names and contracts.
 | 13 | Empty-language decision | `is_empty() -> bool` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_language_analysis.py` | No accessible accepting state; GNFA final_states; no upstream isempty delegation |
 | 14 | Infinite-language decision | `is_finite() -> bool` | `CycleMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_language_analysis.py` | DFA/NFA productive useful SCC; GNFA raises NotImplementedError by agreed scope; ADR-0010 |
 | 15 | Word recognition | `accepts(word) -> bool` | WordMixin via ExtendedFA; GNFA override | VERIFIED | `tests/fa/test_word.py` | Delegates to `accepts_input`; GNFA raises `NotImplementedError` because upstream cannot read words. |
-| 16 | Execution trace of a word | TBD | TBD | TODO | — | — |
+| 16 | Execution trace of a word | `execution_trace(word: str)` | `WordMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_word.py` | Configurations from upstream; rejected words retain their yielded trace; partial DFA may emit `None`. |
 | 17 | States reachable from a given state | TBD | TBD | TODO | — | — |
 | 18 | Predecessors of a state | TBD | TBD | TODO | — | — |
 | 19 | Induced subautomaton | TBD | TBD | TODO | — | — |
@@ -824,4 +824,49 @@ confirms their names and contracts.
   architectural decision or ADR was needed.
 - **Related requirements:** #16-#62 remain TODO. No execution-trace API
   was introduced.
+- **Git commit:** pending.
+
+## #16 - Execution trace of a word
+
+- **Specification / source precedence:** the professor asks for the
+  succession of states (DFA) or active-state sets (NFA). This takes
+  precedence over the mature reference's DFA transition-triplet format.
+  The professor information came from the task prompt; the PDFs were not
+  accessed.
+- **Public API / placement:** `execution_trace(word: str)` in the existing
+  `WordMixin` through `ExtendedFA`. It returns a list of configurations,
+  without an acceptance flag or another public trace API.
+- **DFA configurations:** upstream emits the initial state and one state
+  per consumed symbol. On a partial DFA, a missing transition is emitted
+  as `None`, which remains in the list. Thus the concrete shape is a list
+  of states or `None` where upstream reports a missing transition.
+- **NFA configurations / epsilon:** upstream emits immutable `frozenset`
+  active-state configurations. The initial and subsequent sets already
+  include epsilon closure. A missing path can yield `frozenset()`.
+- **Rejected words:** DFA and NFA emit the last configuration before
+  raising `RejectionException`. The wrapper collects each yield and catches
+  only that upstream exception, returning the complete trace for a rejected
+  word. Other errors propagate.
+- **GNFA limitation:** automata-lib 9.2.0 GNFA's `read_input_stepwise`
+  unconditionally raises `NotImplementedError`. `ExtendedGNFA` raises a
+  descriptive error as for requirement #15; no GNFA simulation is added.
+- **Delegation / implementation:** iterate `read_input_stepwise(word)` once
+  and append its configurations to a list. No DFA/NFA simulation is copied.
+- **Tests:** 10 new functions and 18 parametrized cases in
+  `tests/fa/test_word.py` cover accepted/rejected and empty words, DFA
+  partial transitions, NFA branching and epsilon before/after consumption,
+  exact upstream agreement for accepted words, immutable NFA configurations,
+  unrelated-error propagation, GNFA rejection and source immutability.
+  The full suite has 485 passed, including all 467 prior cases. Strict mypy
+  passes on 24 source files.
+- **Complexity:** upstream simulation cost plus O(k) appends for k yielded
+  configurations; O(k) list references in addition to configuration storage.
+  For DFA, k = |word| + 1 and simulation is O(|word|). NFA simulation
+  additionally depends on active sets and epsilon closures; storing all
+  configurations can require O(k|Q|) space.
+- **ADR:** [ADR-0002](decisions/ADR-0002-extension-strategy.md) supports
+  delegation to upstream. The rejected-trace and partial-DFA conventions
+  are recorded here; no new cross-feature architectural ADR was needed.
+- **Related requirements:** #17-#62 remain TODO. No reachable-states API,
+  transition-triplet trace, animation or visualization was introduced.
 - **Git commit:** pending.

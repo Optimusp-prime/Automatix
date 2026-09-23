@@ -1,6 +1,6 @@
 """Extension minimale de l'automate fini généralisé upstream."""
 
-from typing import FrozenSet, Self
+from typing import FrozenSet, NoReturn, Self
 
 from automata.fa.fa import FAStateT
 from automata.fa.gnfa import GNFA
@@ -10,6 +10,37 @@ from automata_extensions.fa.base import ExtendedFA
 
 class ExtendedGNFA(ExtendedFA, GNFA):
     """Associe les mixins communs au comportement de GNFA."""
+
+    def execution_trace(self, word: str) -> NoReturn:
+        """Report that upstream GNFA cannot produce a word trace.
+
+        Parameters
+        ----------
+        word : str
+            Word whose execution trace was requested.
+
+        Returns
+        -------
+        NoReturn
+            No trace is available for GNFA.
+
+        Raises
+        ------
+        NotImplementedError
+            automata-lib 9.2.0 GNFA does not implement word reading.
+
+        Complexity
+        ----------
+        O(1) time and space; no simulation is attempted.
+
+        References
+        ----------
+        automata-lib 9.2.0 ``GNFA.read_input_stepwise``;
+        professor requirement #16.
+        """
+        raise NotImplementedError(
+            "GNFA execution traces are unsupported by automata-lib 9.2.0"
+        )
 
     def accepts(self, word: str) -> bool:
         """Report that upstream GNFA cannot directly recognize words.
