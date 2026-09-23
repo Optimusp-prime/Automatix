@@ -36,6 +36,15 @@ class _AccessibleStatesQuery(Protocol):
         ...
 
 
+class _AcceptingAccessibility(_AccessibleStatesQuery, Protocol):
+    """Accessible states and the upstream accepting-state set."""
+
+    @property
+    def final_states(self) -> Set[FAStateT]:
+        """Return accepting states, including GNFA's singular final state."""
+        ...
+
+
 class _CoaccessibleStatesQuery(Protocol):
     """Read-only set query required by the coaccessibility predicate."""
 
@@ -360,3 +369,38 @@ class AccessibilityMixin:
         ADR-0007: structural states for empty-language trim results.
         """
         return self.states == self.useful_states()
+
+    def is_empty(self: _AcceptingAccessibility) -> bool:
+        """Return whether the automaton accepts no word.
+
+        The language is empty exactly when no accepting state is accessible
+        from the initial state. GNFA also exposes its singular final state
+        through final_states. Structural states retained by trim() for an
+        empty language do not change this criterion. No source data or cache
+        is modified.
+
+        Returns
+        -------
+        bool
+            True if accessible_states() and final_states are disjoint;
+            False if an accepting state is reachable, including by an
+            zero-length path from an accepting initial state.
+
+        Complexity
+        ----------
+        accessible_states() builds adjacency and traverses it in
+        O(|Q| + T) time and O(|Q| + |E|) peak space. Testing disjointness
+        adds at most O(|Q|) expected time, assuming constant-time state
+        hashing and equality. Overall: O(|Q| + T) time and
+        O(|Q| + |E|) peak space. Q includes all states, E all emitted
+        transitions, and T exhausts iter_transitions, including empty
+        NFA target entries and stored GNFA None labels.
+
+        References
+        ----------
+        Professor requirement #13: no reachable accepting state, as
+        supplied in the task prompt; the source PDFs were not accessed.
+        ADR-0005: common accessibility analysis. ADR-0007: structural
+        states in an empty-language result of trim().
+        """
+        return self.accessible_states().isdisjoint(self.final_states)

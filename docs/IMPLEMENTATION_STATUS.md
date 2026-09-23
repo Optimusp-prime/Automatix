@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #12 - Cycle detection from a given state (VERIFIED)
+Current feature: #13 - Empty-language decision (VERIFIED)
 
-Next planned feature: #13 - Empty-language decision (not started)
+Next planned feature: #14 - Infinite-language decision (not started)
 
-Current phase: cycle detection from a state verified; awaiting the next feature
+Current phase: empty-language decision verified; awaiting the next feature
 
 ## Infrastructure
 
@@ -67,7 +67,7 @@ confirms their names and contracts.
 | 10 | Strongly connected components | `strongly_connected_components()` | `SCCMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_scc.py` | Tarjan; all states; list of frozensets; ADR-0008 |
 | 11 | Cycle existence detection | `has_cycle() -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | Global DFS back edge; all states; ADR-0009 |
 | 12 | Cycle detection from a given state | `has_cycle_from(state) -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | DFS back edge only from supplied state; InvalidStateError |
-| 13 | Empty-language decision | TBD | TBD | TODO | — | — |
+| 13 | Empty-language decision | `is_empty() -> bool` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_language_analysis.py` | No accessible accepting state; GNFA final_states; no upstream isempty delegation |
 | 14 | Infinite-language decision | TBD | TBD | TODO | — | — |
 | 15 | Word recognition | TBD | TBD | TODO | — | — |
 | 16 | Execution trace of a word | TBD | TBD | TODO | — | — |
@@ -689,4 +689,45 @@ confirms their names and contracts.
   graph and start-state conventions. Neither accepted ADR is rewritten.
 - **Related requirements:** #13-#62 remain TODO. No #17 reachable-states
   method or language decision is implemented.
+- **Git commit:** pending.
+
+## #13 - Empty-language decision
+
+- **Specification / French meaning:** decide whether the recognized language
+  is empty (decision pour le probleme du langage vide). The professor
+  information came from the task prompt; the PDFs were not accessed.
+- **Mathematical criterion:** the language is empty exactly when no final
+  state is accessible from the initial state, including by a zero-length
+  path. Equivalently, `accessible_states() & final_states` is empty.
+- **Public API:** `is_empty() -> bool`, without parameters.
+- **Accepting-state representation:** DFA and NFA take `final_states` in
+  their constructors. GNFA takes one `final_state`, but upstream GNFA 9.2.0
+  also exposes `final_states` as a frozenset containing that state. The
+  common criterion therefore needs no concrete-type branch.
+- **Implementation:** `AccessibilityMixin` calls `accessible_states()`
+  once and tests disjointness with `final_states`. No DFS/BFS duplication,
+  upstream `isempty()` delegation, word enumeration, mutation, or cache.
+- **Empty trim representation:** under ADR-0007, a trim result for an empty
+  language retains mandatory structural states, but no accepting state is
+  reachable. `is_empty()` correctly returns True for DFA, NFA and GNFA.
+- **Tests:** 11 test functions, 25 parametrized cases in
+  `tests/fa/test_language_analysis.py` cover accepting initial states,
+  one-step and longer accepting paths, unreachable or absent final states,
+  cycles with and without reachable finals, partial DFA, NFA epsilon, GNFA
+  None slots and singular final state, None and heterogeneous states, exact
+  bool, mathematical equivalence, immutability, empty-language trim
+  representatives, one delegated query, no upstream `isempty()` delegation
+  and common public inheritance. The full suite has 412 passed, including
+  all 387 previous cases. Strict mypy passes on 22 source files.
+- **Complexity:** O(|Q| + T) time and O(|Q| + |E|) peak space, assuming
+  constant-time hashing and equality. Q includes all states, E emitted
+  transitions including parallel edges, and T exhausts iter_transitions,
+  including empty NFA target entries and GNFA stored None slots. The
+  disjointness test adds at most O(|Q|) expected time.
+- **Related requirements:** #14 (infinite-language decision) remains TODO,
+  as do #15-#62. No `is_finite()` method is added.
+- **ADR:** [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md)
+  supplies the common accessibility layer;
+  [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md) explains
+  empty-language trim representatives. No new ADR is needed.
 - **Git commit:** pending.
