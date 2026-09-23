@@ -17,6 +17,12 @@ class _CompletableDFA(Protocol):
     def complete(self) -> DFA: ...
 
 
+class _DistinguishabilityQuery(Protocol):
+    """Existing pair analysis reused by the equivalence partition."""
+
+    def distinguishable_states(self) -> set[_StatePair]: ...
+
+
 def _distinguishability_table(dfa: DFA) -> set[_StatePair]:
     """Mark epsilon-distinct pairs, then propagate marks to predecessor pairs."""
     pairs = [frozenset((p, q)) for p, q in combinations(dfa.states, 2)]
@@ -45,7 +51,7 @@ def _distinguishability_table(dfa: DFA) -> set[_StatePair]:
 
 
 class MinimizationMixin:
-    """Expose DFA table-filling analysis without later minimization APIs."""
+    """Analyze DFA distinguishability and its induced state partition."""
 
     def distinguishable_states(self) -> set[frozenset[FAStateT]]:
         """Return unordered pairs distinguishable by some input word.
@@ -79,3 +85,57 @@ class MinimizationMixin:
         completed = cast(_CompletableDFA, self).complete()
         marked = _distinguishability_table(completed)
         return {pair for pair in marked if pair.issubset(original.states)}
+
+    def equivalence_classes(self) -> list[frozenset[FAStateT]]:
+        """Partition all DFA states by Myhill–Nerode equivalence.
+
+        States share a class exactly when no word distinguishes them.
+        This includes unreachable states. Class order is unspecified,
+        and the source automaton is not modified.
+
+        Returns
+        -------
+        list[frozenset[FAStateT]]
+            Nonempty, disjoint classes whose union is the full state set.
+
+        Complexity
+        ----------
+        O(|Q|² × |Sigma| + |Q|² × alpha(|Q|) + V) expected time and
+        O(|Q|² × |Sigma| + M) auxiliary space. The first term and V/M
+        come from ``distinguishable_states``; union-find examines all
+        O(|Q|²) pairs with inverse-Ackermann amortized operations.
+
+        References
+        ----------
+        Professor requirement #30: stable partition of DFA states by
+        non-distinguishability. Reuses requirement #29 table filling.
+        """
+        dfa = cast(DFA, self)
+        distinguishable = cast(
+            _DistinguishabilityQuery, self
+        ).distinguishable_states()
+        parent: dict[FAStateT, FAStateT] = {state: state for state in dfa.states}
+        rank: dict[FAStateT, int] = {state: 0 for state in dfa.states}
+
+        def find(state: FAStateT) -> FAStateT:
+            while parent[state] != state:
+                parent[state] = parent[parent[state]]
+                state = parent[state]
+            return state
+
+        for p, q in combinations(dfa.states, 2):
+            if frozenset((p, q)) in distinguishable:
+                continue
+            root_p, root_q = find(p), find(q)
+            if root_p == root_q:
+                continue
+            if rank[root_p] < rank[root_q]:
+                root_p, root_q = root_q, root_p
+            parent[root_q] = root_p
+            if rank[root_p] == rank[root_q]:
+                rank[root_p] += 1
+
+        groups: dict[FAStateT, set[FAStateT]] = defaultdict(set)
+        for state in dfa.states:
+            groups[find(state)].add(state)
+        return [frozenset(group) for group in groups.values()]

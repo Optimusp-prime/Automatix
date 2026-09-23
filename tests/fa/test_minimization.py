@@ -1,6 +1,7 @@
 """DFA distinguishable-state table filling (requirement #29 only)."""
 
 from copy import deepcopy
+from itertools import combinations
 
 from automata_extensions.fa import ExtendedDFA, ExtendedGNFA, ExtendedNFA
 from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
@@ -131,5 +132,111 @@ def test_query_is_immutable_and_dfa_specific() -> None:
     assert not any(
         hasattr(d, name) for name in
         ("pair_table", "pair_table_str", "print_pair_table",
-         "equivalence_classes", "is_minimal", "minimize")
+         "is_minimal", "minimize")
     )
+
+
+def test_source_compatibility_three_singleton_classes() -> None:
+    """The mature three-state cycle has three Myhill–Nerode classes."""
+    d = ExtendedDFA(
+        states={"0", "1", "2"}, input_symbols={"a"},
+        transitions={"0": {"a": "1"}, "1": {"a": "2"}, "2": {"a": "0"}},
+        initial_state="0", final_states={"2"},
+    )
+    assert set(d.equivalence_classes()) == {
+        frozenset({"0"}), frozenset({"1"}), frozenset({"2"}),
+    }
+
+
+def test_equivalent_states_share_a_class() -> None:
+    d = ExtendedDFA(
+        states={"initial", "left", "right"}, input_symbols={"a"},
+        transitions={
+            "initial": {"a": "left"},
+            "left": {"a": "left"}, "right": {"a": "right"},
+        },
+        initial_state="initial", final_states={"left", "right"},
+    )
+    assert set(d.equivalence_classes()) == {
+        frozenset({"initial"}), frozenset({"left", "right"}),
+    }
+
+
+def test_no_distinguishable_pairs_yield_one_class() -> None:
+    d = ExtendedDFA(
+        states={"p", "q", "r"}, input_symbols={"a"},
+        transitions={
+            "p": {"a": "q"}, "q": {"a": "r"}, "r": {"a": "p"},
+        },
+        initial_state="p", final_states={"p", "q", "r"},
+    )
+    assert d.distinguishable_states() == set()
+    assert d.equivalence_classes() == [frozenset(d.states)]
+
+
+def test_partition_properties_match_distinguishability_relation() -> None:
+    d = ExtendedDFA(
+        states={"start", "p", "q", "final", "dead"}, input_symbols={"a"},
+        transitions={
+            "start": {"a": "p"}, "p": {"a": "final"},
+            "q": {"a": "final"}, "final": {"a": "final"},
+            "dead": {"a": "dead"},
+        },
+        initial_state="start", final_states={"final"},
+    )
+    classes = d.equivalence_classes()
+    marked = d.distinguishable_states()
+    assert type(classes) is list
+    assert all(type(group) is frozenset and group for group in classes)
+    assert frozenset().union(*classes) == d.states
+    assert sum(len(group) for group in classes) == len(d.states)
+    assert any({"p", "q"}.issubset(group) for group in classes)
+    for p, q in combinations(d.states, 2):
+        same_class = any(p in group and q in group for group in classes)
+        assert same_class is (frozenset((p, q)) not in marked)
+
+
+def test_unreachable_states_are_partitioned_too() -> None:
+    d = ExtendedDFA(
+        states={"initial", "unreachable_final", "unreachable_dead"},
+        input_symbols={"a"},
+        transitions={
+            "initial": {"a": "initial"},
+            "unreachable_final": {"a": "unreachable_final"},
+            "unreachable_dead": {"a": "unreachable_dead"},
+        },
+        initial_state="initial", final_states={"unreachable_final"},
+    )
+    assert set(d.equivalence_classes()) == {
+        frozenset({"initial", "unreachable_dead"}),
+        frozenset({"unreachable_final"}),
+    }
+
+
+def test_partial_dfa_equivalent_missing_transitions_share_a_class() -> None:
+    d = ExtendedDFA(
+        states={"p", "q", "final"}, input_symbols={"a", "b"},
+        transitions={"p": {}, "q": {}, "final": {"a": "final"}},
+        initial_state="p", final_states={"final"}, allow_partial=True,
+    )
+    assert set(d.equivalence_classes()) == {
+        frozenset({"p", "q"}), frozenset({"final"}),
+    }
+
+
+def test_heterogeneous_states_and_immutability() -> None:
+    d = ExtendedDFA(
+        states={None, 1, ("final",)}, input_symbols={"a"},
+        transitions={
+            None: {}, 1: {}, ("final",): {"a": ("final",)},
+        },
+        initial_state=None, final_states={("final",)}, allow_partial=True,
+    )
+    before = deepcopy(d.input_parameters)
+    assert set(d.equivalence_classes()) == {
+        frozenset({None, 1}), frozenset({("final",)}),
+    }
+    assert d.input_parameters == before
+    assert ExtendedDFA.equivalence_classes is MinimizationMixin.equivalence_classes
+    assert not hasattr(d, "is_minimal")
+    assert not hasattr(d, "minimize")

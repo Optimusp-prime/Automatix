@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #29 - DFA distinguishable states (VERIFIED)
+Current feature: #30 - Myhill-Nerode equivalence classes (VERIFIED)
 
-Next planned feature: #30 - Myhill-Nerode equivalence classes (not started)
+Next planned feature: #31 - Minimality predicate (not started)
 
-Current phase: iterative DFA pair-table filling verified
+Current phase: state partition by non-distinguishability verified
 
 ## Infrastructure
 
@@ -84,7 +84,7 @@ confirms their names and contracts.
 | 27 | Prefix-closed language test | `is_prefix_closed() -> bool` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Every useful state must be final; empty language is prefix-closed. |
 | 28 | Greatest prefix-closed sublanguage | `prefix_closed_sublanguage() -> ExtendedDFA` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Fresh ExtendedDFA with final-to-final edges; states and finals retained. |
 | 29 | Distinguishable states | `distinguishable_states() -> set[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Iterative table filling over all states; partial DFA uses analysis-only completion. |
-| 30 | Myhill–Nerode equivalence classes | TBD | TBD | TODO | — | — |
+| 30 | Myhill–Nerode equivalence classes | `equivalence_classes() -> list[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Partition all states by non-distinguishability, including unreachable states. |
 | 31 | Test whether an automaton is minimal | TBD | TBD | TODO | — | — |
 | 32 | Minimization | TBD | TBD | TODO | — | — |
 | 33 | Test whether an automaton is deterministic | TBD | TBD | TODO | — | — |
@@ -1424,4 +1424,40 @@ confirms their names and contracts.
   and keeps the table helper private for possible future #30 reuse.
 - **Related requirements:** #30-#62 remain TODO. No public equivalence
   classes, minimality test or minimization method was added.
+- **Git commit:** pending.
+
+## #30 - Myhill-Nerode equivalence classes
+
+- **Professor specification / mathematical meaning:** partition every DFA
+  state, including unreachable states, by indistinguishability: two states
+  share a class exactly when no future word gives different acceptance
+  outcomes. The professor PDFs were not accessed; the attached task text
+  supplies the specification and mature example.
+- **Mature compatibility / public API:** `equivalence_classes() ->
+  list[frozenset[FAStateT]]` in the existing DFA-only `MinimizationMixin`.
+  The returned list has no meaningful order and states are never sorted.
+  The three-state cycle reproduces the mature three-singleton example
+  when classes are compared without ordering.
+- **Relation to #29 / construction:** call `distinguishable_states()` once;
+  examine each unordered pair of original states and union those not marked
+  distinguishable. Union-find with path compression and rank groups each
+  state into exactly one nonempty immutable class. No table filling is
+  duplicated and no states are merged in the source automaton.
+- **Partial DFA / immutability:** #29 already interprets missing transitions
+  through an analysis-only implicit trap; #30 consumes its resulting
+  relation without completing again. The source remains unchanged.
+- **Tests:** seven new tests in `tests/fa/test_minimization.py` cover the
+  mature example, all-singleton and all-in-one partitions, mixed classes,
+  disjointness and coverage, pairwise equivalence with #29, unreachable
+  states, partial DFA with two missing transitions, None/heterogeneous
+  states and immutability. The full suite has 696 passed, including all
+  689 previous cases; strict mypy passes on 42 source files.
+- **Complexity:** O(|Q|² × |Sigma| + |Q|² × alpha(|Q|) + V) expected time
+  and O(|Q|² × |Sigma| + M) auxiliary space. V/M include #29's
+  analysis-only completion and upstream validation; union-find examines
+  O(|Q|²) pairs with inverse-Ackermann amortized operations.
+- **ADR:** no new ADR; the method composes #29 with a local partition
+  structure and changes no accepted architectural policy.
+- **Related requirements:** #31-#62 remain TODO. No `is_minimal()` or
+  extension `minimize()` was added.
 - **Git commit:** pending.
