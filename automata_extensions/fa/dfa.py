@@ -6,10 +6,11 @@ from automata.fa.dfa import DFA
 from automata.fa.fa import FAStateT
 
 from automata_extensions.fa.base import ExtendedFA
+from automata_extensions.fa.dfa_mixins.complement import ComplementMixin
 from automata_extensions.fa.dfa_mixins.completeness import CompletenessMixin
 
 
-class ExtendedDFA(CompletenessMixin, ExtendedFA, DFA):
+class ExtendedDFA(CompletenessMixin, ComplementMixin, ExtendedFA, DFA):
     """Associe les mixins communs au comportement de DFA."""
 
     def _restrict_to_states(self, kept: FrozenSet[FAStateT]) -> Self:

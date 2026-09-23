@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #21 - DFA completion (VERIFIED)
+Current feature: #22 - DFA complement (VERIFIED)
 
-Next planned feature: #22 - Complement (not started)
+Next planned feature: #23 - Cartesian product (not started)
 
-Current phase: DFA completion verified through upstream delegation
+Current phase: professor complement verified; minimization option deferred
 
 ## Infrastructure
 
@@ -76,7 +76,7 @@ confirms their names and contracts.
 | 19 | Induced subautomaton | `induced_subautomaton(states)` | `SubautomatonMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_subautomaton.py` | Exact requested state set; invalid structural subsets raise `InvalidStateError`; ADR-0012. |
 | 20 | Test whether an automaton is complete | `is_complete() -> bool` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Checks actual DFA transition totality, independent of `allow_partial`; #21 remains TODO. |
 | 21 | Completion | `complete(trap_state=None) -> ExtendedDFA` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Delegates to upstream `to_complete`; fresh ExtendedDFA, optional collision-checked sink, same language. |
-| 22 | Complement | TBD | TBD | TODO | — | — |
+| 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True explicitly deferred to #32. |
 | 23 | Cartesian product of two automata | TBD | TBD | TODO | — | — |
 | 24 | Language inclusion | TBD | TBD | TODO | — | — |
 | 25 | Language equality | TBD | TBD | TODO | — | — |
@@ -1101,4 +1101,53 @@ confirms their names and contracts.
   Upstream sink naming supplies the policy; no new ADR is required.
 - **Related requirements:** #22-#62 remain TODO. No complement operation
   or other later feature was introduced.
+- **Git commit:** pending.
+
+## #22 - DFA complement
+
+- **Professor specification:** complement a DFA by completing its transition
+  function and then exchanging accepting and nonaccepting states. The source
+  PDFs were not accessed; the task prompt supplies the professor contract.
+- **Mature documentation compatibility / public API:**
+  `complement(*, retain_names: bool = False, minify: bool = False)` in
+  `ComplementMixin` through `ExtendedDFA` only. The default performs no
+  minimization, unlike upstream `DFA.complement(minify=True)`.
+  `retain_names` has no effect without minimization.
+- **Algorithm / partial DFA:** call `self.complete()` first, then construct
+  a fresh ExtendedDFA with the completed states, alphabet, transitions and
+  initial state, but with `completed.states - completed.final_states` as
+  final states. A sink introduced for a missing edge becomes final, so
+  words rejected on that edge are accepted by the complement.
+- **Language, type and immutability:** the result is complete, recognizes
+  `Sigma*` minus the source language, and remains an ExtendedDFA exposing
+  existing extension methods. Neither the source nor the intermediate
+  completed DFA is mutated. Double complementation preserves the language.
+- **Temporary mature-option limitation:** `minify=True` raises a clear
+  `NotImplementedError` until professor requirement #32. automata-lib 9.2.0
+  `DFA.minify()` was inspected and rejected as a temporary bridge: with
+  `retain_names=True` it wraps state names in frozensets rather than
+  preserving the mature example's string names, and it raises `KeyError`
+  for a valid DFA whose initial state is None. Once #32 is implemented,
+  this branch should delegate to the extension's
+  `minimize(keep_original_names=retain_names)`. #30-#32 remain TODO.
+- **Source compatibility regression:** a directly derived no-argument
+  `d.complement()` case verifies `c1.accepts_input("a") is True` and the
+  mature `minify=False` default by retaining an unreachable state. The
+  exact mature fixture was not supplied; the test uses a minimal
+  equivalent case. The documented `minify=True` example is deferred.
+- **Tests:** 14 new functions and 28 cases in `tests/fa/test_complement.py`
+  cover complete and partial DFA, exact final-state inversion, accepting
+  sink, seven representative words, empty word and alphabet, double
+  complement, no/all final states, None/heterogeneous states, default
+  versus explicit `minify=False`, deferred `minify=True`, immutability,
+  composition and DFA-only MRO. The full suite has 627 passed, including
+  all 599 prior cases; strict mypy passes on 32 source files.
+- **Complexity:** O(|Q| × |Sigma| + V) worst-case time and
+  O(|Q| × |Sigma| + M) auxiliary space, including completion, copying and
+  upstream constructor validation costs V and M. Inverting final states
+  adds O(|Q|) work. No minimization runs on the supported branch.
+- **ADR:** reuses the accepted DFA-specialization and immutable
+  reconstruction policies in ADR-0003 and ADR-0007; the deferred option
+  is documented here without adding a new architecture decision.
+- **Related requirements:** #23-#62 remain TODO, especially #32.
 - **Git commit:** pending.
