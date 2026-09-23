@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #19 - Induced subautomaton (VERIFIED)
+Current feature: #20 - Automaton completeness test (VERIFIED)
 
-Next planned feature: #20 - Automaton completeness test (not started)
+Next planned feature: #21 - Completion (not started)
 
-Current phase: exact-state reconstruction verified across ExtendedDFA/NFA/GNFA
+Current phase: DFA transition-totality predicate verified
 
 ## Infrastructure
 
@@ -74,7 +74,7 @@ confirms their names and contracts.
 | 17 | States reachable from a given state | `reachable_states(state) -> FrozenSet[FAStateT]` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | Delegates to `dfs(state)`; includes start; inherits `InvalidStateError`. |
 | 18 | Predecessors of a state | `predecessors_graph(state) -> FrozenSet[FAStateT]` | `GraphMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_graph.py` | Direct neighbors from `_build_predecessors`; avoids upstream DFA word API collision. |
 | 19 | Induced subautomaton | `induced_subautomaton(states)` | `SubautomatonMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_subautomaton.py` | Exact requested state set; invalid structural subsets raise `InvalidStateError`; ADR-0012. |
-| 20 | Test whether an automaton is complete | TBD | TBD | TODO | — | — |
+| 20 | Test whether an automaton is complete | `is_complete() -> bool` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Checks actual DFA transition totality, independent of `allow_partial`; #21 remains TODO. |
 | 21 | Completion | TBD | TBD | TODO | — | — |
 | 22 | Complement | TBD | TBD | TODO | — | — |
 | 23 | Cartesian product of two automata | TBD | TBD | TODO | — | — |
@@ -1016,4 +1016,40 @@ confirms their names and contracts.
   changing that accepted trim policy.
 - **Related requirements:** #20-#62 remain TODO. No completeness test,
   completion operation or other later feature was introduced.
+- **Git commit:** pending.
+
+## #20 - DFA completeness predicate
+
+- **Specification / French meaning:** test whether a deterministic finite
+  automaton is complete (automate complet). The professor information came
+  from the task prompt; the PDFs were not accessed.
+- **DFA-only scope / placement:** `CompletenessMixin` belongs to
+  `fa/dfa_mixins/` and is exposed through `ExtendedDFA` only. Its MRO leaves
+  `ExtendedNFA` and `ExtendedGNFA` unchanged.
+- **Public API / definition:** `is_complete() -> bool` returns True exactly
+  when every state has a defined transition for every input symbol. An empty
+  alphabet satisfies this condition vacuously. The method reads the
+  validated DFA transition table without mutating the automaton.
+- **Difference from `allow_partial`:** that constructor option permits
+  missing transitions; it does not imply that transitions are missing. A
+  DFA with `allow_partial=True` may still be complete.
+- **Integration:** an exact induced-subautomaton restriction may delete
+  edges and produce a partial DFA. The predicate observes the resulting
+  transitions rather than reconstructing or completing the automaton.
+- **Tests:** 11 test functions, 13 parametrized cases in
+  `tests/fa/test_completeness.py` cover complete and partial tables,
+  missing edges on different states, self-loops, empty alphabet,
+  `allow_partial` independence, None/heterogeneous states, induced
+  restrictions, immutable source, concrete MRO and DFA-only exposure.
+  The full suite has 579 passed, including all 566 previous cases;
+  strict mypy passes on 30 source files.
+- **Complexity:** O(|Q| × |Σ|) worst-case time and O(1) auxiliary space,
+  assuming expected constant-time mapping membership. The first missing
+  transition may cause an early return.
+- **ADR reuse:** [ADR-0003](decisions/ADR-0003-common-extended-fa-layer.md)
+  governs common versus specialized mixins;
+  [ADR-0012](decisions/ADR-0012-exact-induced-subautomata.md) explains why
+  restriction can create a partial DFA. No new ADR is needed.
+- **Related requirements:** #21-#62 remain TODO. No completion or
+  complement operation was introduced.
 - **Git commit:** pending.
