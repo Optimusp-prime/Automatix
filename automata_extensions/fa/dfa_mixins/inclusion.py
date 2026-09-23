@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class InclusionMixin:
-    """Decide DFA language inclusion using existing extension analyses."""
+    """Decide DFA language inclusion and equivalence by composition."""
 
     def is_included_in(self, other: ExtendedDFA) -> bool:
         """Return whether every word accepted by this DFA is accepted by other.
@@ -56,3 +56,38 @@ class InclusionMixin:
             ),
         )
         return witness_automaton.is_empty()
+
+    def is_equivalent(self, other: ExtendedDFA) -> bool:
+        """Return whether this DFA and another accept the same language.
+
+        Language equality is mutual inclusion, independent of state names
+        or transition-table structure. Both operands remain unchanged.
+
+        Parameters
+        ----------
+        other : ExtendedDFA
+            DFA whose language is compared with this DFA's language.
+
+        Returns
+        -------
+        bool
+            True exactly when both languages contain the same words.
+
+        Raises
+        ------
+        SymbolMismatchError
+            If the input alphabets differ, as in ``is_included_in``.
+
+        Complexity
+        ----------
+        At most two inclusion checks: O((|Q1| + |Q2| + R) × |Sigma| + V)
+        expected time and O((|Q1| + |Q2| + R) × |Sigma| + M) peak
+        auxiliary space. R bounds reachable product pairs in either
+        direction; V/M include completion and constructor validation.
+
+        References
+        ----------
+        Professor requirement #25: language equality by mutual inclusion.
+        """
+        left = cast("ExtendedDFA", self)
+        return left.is_included_in(other) and other.is_included_in(left)

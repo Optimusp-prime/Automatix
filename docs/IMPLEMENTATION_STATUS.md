@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #24 - DFA language inclusion (VERIFIED)
+Current feature: #25 - DFA language equality (VERIFIED)
 
-Next planned feature: #25 - Language equality (not started)
+Next planned feature: #26 - Automaton isomorphism (not started)
 
-Current phase: inclusion via empty product with complement verified
+Current phase: language equality via mutual inclusion verified
 
 ## Infrastructure
 
@@ -79,7 +79,7 @@ confirms their names and contracts.
 | 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True explicitly deferred to #32. |
 | 23 | Cartesian product of two automata | `product(other, is_final)` | `ProductMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_product.py` | Reachable tuple states only; caller selects finals; equal alphabets; upstream partial-trap convention. |
 | 24 | Language inclusion | `is_included_in(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Tests empty language of self × complement(other); equal alphabets; partial DFA supported. |
-| 25 | Language equality | TBD | TBD | TODO | — | — |
+| 25 | Language equality | `is_equivalent(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Mutual language inclusion; same-alphabet policy; no structural comparison. |
 | 26 | Automaton isomorphism | TBD | TBD | TODO | — | — |
 | 27 | Prefix-closed language test | TBD | TBD | TODO | — | — |
 | 28 | Greatest prefix-closed sublanguage | TBD | TBD | TODO | — | — |
@@ -1236,4 +1236,37 @@ confirms their names and contracts.
   complement, product and accessibility semantics.
 - **Related requirements:** #25-#62 remain TODO. No `is_equivalent`,
   union, intersection or difference API was implemented.
+- **Git commit:** pending.
+
+## #25 - DFA language equality
+
+- **Professor contract / mathematical meaning:** two DFA languages are equal
+  exactly when each is included in the other. This is language equivalence,
+  independent of state names, transition-table shape or unreachable states.
+  The professor PDFs were not accessed; the attached task text supplies the
+  relevant specification and mature example.
+- **Mature compatibility / public API:** `is_equivalent(other) -> bool` in
+  DFA-only `InclusionMixin` through `ExtendedDFA`. A source-compatibility
+  regression checks `(d.is_included_in(d), d.is_equivalent(d)) == (True, True)`.
+- **Implementation:** return `self.is_included_in(other) and
+  other.is_included_in(self)`, preserving normal short-circuit evaluation.
+  No structural equality check or new product/traversal algorithm is added.
+- **Alphabet / partial DFA policy:** both inclusion calls retain #24's
+  equal-alphabet requirement (`SymbolMismatchError` on mismatch) and its
+  partial-DFA handling. Neither operand is modified.
+- **Tests:** nine new cases in `tests/fa/test_inclusion.py` cover reflexivity,
+  distinct structures with equal languages, strict one-way inclusion,
+  two empty languages, empty versus nonempty, partial DFA, alphabet mismatch,
+  None/heterogeneous states, immutability, DFA-only MRO and the supplied
+  mature example. The full suite has 657 passed, including all 648 previous
+  cases; strict mypy passes on 36 source files.
+- **Complexity:** at most two inclusion checks: expected
+  O((|Q1| + |Q2| + R) × |Sigma| + V) time and
+  O((|Q1| + |Q2| + R) × |Sigma| + M) peak auxiliary space, with R bounding
+  reachable product pairs in either direction and V/M covering upstream
+  reconstruction and validation. The second check is skipped on first failure.
+- **ADR:** no new ADR; reuses the accepted DFA specialization and the
+  established complement, product and inclusion policies.
+- **Related requirements:** #26-#62 remain TODO. Automaton isomorphism (#26)
+  is distinct from language equivalence and was not implemented.
 - **Git commit:** pending.

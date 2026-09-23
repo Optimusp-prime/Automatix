@@ -167,3 +167,102 @@ def test_inclusion_mro_is_dfa_only() -> None:
     assert InclusionMixin in ExtendedDFA.__mro__
     for cls in (ExtendedNFA, ExtendedGNFA):
         assert InclusionMixin not in cls.__mro__
+
+
+def test_source_compatibility_equivalence_is_reflexive() -> None:
+    """Preserve the mature (d.is_included_in(d), d.is_equivalent(d)) example."""
+    d = _three_state_cycle()
+    assert (d.is_included_in(d), d.is_equivalent(d)) == (True, True)
+    assert type(d.is_equivalent(d)) is bool
+
+
+def test_different_structures_can_accept_the_same_language() -> None:
+    left = _nonempty_words()
+    right = ExtendedDFA(
+        states={"x", "y", "unreachable"}, input_symbols={"a"},
+        transitions={
+            "x": {"a": "y"}, "y": {"a": "y"},
+            "unreachable": {"a": "unreachable"},
+        },
+        initial_state="x", final_states={"y"},
+    )
+    assert left.states != right.states
+    assert left.is_equivalent(right) is True
+    assert right.is_equivalent(left) is True
+
+
+def test_strict_inclusion_does_not_imply_equivalence() -> None:
+    smaller, larger = _nonempty_words(), _all_words()
+    assert smaller.is_included_in(larger) is True
+    assert larger.is_included_in(smaller) is False
+    assert smaller.is_equivalent(larger) is False
+    assert larger.is_equivalent(smaller) is False
+
+
+def test_empty_languages_are_equivalent_but_empty_and_nonempty_are_not() -> None:
+    first = ExtendedDFA(
+        states={"first"}, input_symbols={"a"},
+        transitions={"first": {"a": "first"}},
+        initial_state="first", final_states=set(),
+    )
+    second = ExtendedDFA(
+        states={0, 1}, input_symbols={"a"},
+        transitions={0: {"a": 1}, 1: {"a": 1}},
+        initial_state=0, final_states=set(),
+    )
+    assert first.is_equivalent(second) is True
+    assert first.is_equivalent(_nonempty_words()) is False
+
+
+def test_partial_dfas_with_renamed_states_are_equivalent() -> None:
+    left = ExtendedDFA(
+        states={"start", "final"}, input_symbols={"a", "b"},
+        transitions={"start": {"a": "final"}, "final": {"a": "final"}},
+        initial_state="start", final_states={"final"}, allow_partial=True,
+    )
+    right = ExtendedDFA(
+        states={0, 1}, input_symbols={"a", "b"},
+        transitions={0: {"a": 1}, 1: {"a": 1}},
+        initial_state=0, final_states={1}, allow_partial=True,
+    )
+    assert left.is_equivalent(right) is True
+    assert right.is_equivalent(left) is True
+
+
+def test_equivalence_propagates_alphabet_mismatch() -> None:
+    other = ExtendedDFA(
+        states={"p"}, input_symbols={"b"},
+        transitions={"p": {"b": "p"}},
+        initial_state="p", final_states={"p"},
+    )
+    with pytest.raises(SymbolMismatchError):
+        _all_words().is_equivalent(other)
+
+
+def test_equivalence_handles_none_and_heterogeneous_states() -> None:
+    left = ExtendedDFA(
+        states={None, 1}, input_symbols={"a"},
+        transitions={None: {"a": 1}, 1: {"a": 1}},
+        initial_state=None, final_states={1},
+    )
+    right = ExtendedDFA(
+        states={"start", 2}, input_symbols={"a"},
+        transitions={"start": {"a": 2}, 2: {"a": 2}},
+        initial_state="start", final_states={2},
+    )
+    assert left.is_equivalent(right) is True
+
+
+def test_equivalence_keeps_both_operands_unchanged() -> None:
+    left, right = _nonempty_words(), _all_words()
+    before_left = deepcopy(left.input_parameters)
+    before_right = deepcopy(right.input_parameters)
+    assert left.is_equivalent(right) is False
+    assert left.input_parameters == before_left
+    assert right.input_parameters == before_right
+
+
+def test_equivalence_mro_is_dfa_only() -> None:
+    assert ExtendedDFA.is_equivalent is InclusionMixin.is_equivalent
+    for cls in (ExtendedNFA, ExtendedGNFA):
+        assert InclusionMixin not in cls.__mro__
