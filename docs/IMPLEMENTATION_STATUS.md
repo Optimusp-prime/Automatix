@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #13 - Empty-language decision (VERIFIED)
+Current feature: #14 - Infinite-language decision (VERIFIED for DFA/NFA)
 
-Next planned feature: #14 - Infinite-language decision (not started)
+Next planned feature: #15 - Word recognition (not started)
 
-Current phase: empty-language decision verified; awaiting the next feature
+Current phase: DFA/NFA finiteness verified; GNFA regex-label analysis deferred by user choice
 
 ## Infrastructure
 
@@ -68,7 +68,7 @@ confirms their names and contracts.
 | 11 | Cycle existence detection | `has_cycle() -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | Global DFS back edge; all states; ADR-0009 |
 | 12 | Cycle detection from a given state | `has_cycle_from(state) -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | DFS back edge only from supplied state; InvalidStateError |
 | 13 | Empty-language decision | `is_empty() -> bool` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_language_analysis.py` | No accessible accepting state; GNFA final_states; no upstream isempty delegation |
-| 14 | Infinite-language decision | TBD | TBD | TODO | — | — |
+| 14 | Infinite-language decision | `is_finite() -> bool` | `CycleMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_language_analysis.py` | DFA/NFA productive useful SCC; GNFA raises NotImplementedError by agreed scope; ADR-0010 |
 | 15 | Word recognition | TBD | TBD | TODO | — | — |
 | 16 | Execution trace of a word | TBD | TBD | TODO | — | — |
 | 17 | States reachable from a given state | TBD | TBD | TODO | — | — |
@@ -730,4 +730,59 @@ confirms their names and contracts.
   supplies the common accessibility layer;
   [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md) explains
   empty-language trim representatives. No new ADR is needed.
+- **Git commit:** pending.
+
+## #14 - Finite/infinite language decision
+
+- **Specification / terminology:** decide whether the recognized language
+  is finite (langage fini) or infinite (langage infini). The professor
+  information came from the task prompt; the PDFs were not accessed.
+- **Professor criterion and semantic refinement:** an accessible and
+  coaccessible cycle, equivalently a cycle among useful states, is relevant
+  only when repetition can increase accepted word length. The user
+  explicitly chose real language finiteness: an epsilon-only useful NFA
+  cycle is finite, while a useful cycle with a consuming edge is infinite.
+- **Public API / placement:** `is_finite() -> bool` in `CycleMixin` for
+  ExtendedDFA and ExtendedNFA. ExtendedGNFA overrides the method to raise
+  `NotImplementedError` by the user's explicit scope choice. No
+  `is_infinite()` alias is added.
+- **Useful-cycle definition / implementation:** compute `useful_states()`
+  and the existing SCC partition. A consuming transition with both ends
+  in the same useful SCC can be repeated on an accepting path, making the
+  language infinite. The method returns the opposite boolean. It does not
+  call `has_cycle()`, `trim()` or upstream `isfinite()`, and does not modify
+  the private back-edge helper or the #11/#12 public contracts.
+- **Induced useful-subgraph restriction:** only edges with both endpoints
+  useful can establish an infinite accepted language. A useful state's
+  outgoing edge into a dead cycle cannot create a false positive. SCC
+  membership also prevents a one-time consuming exit from an epsilon cycle
+  from being mistaken for repeatable consumption.
+- **DFA/NFA/GNFA convention:** DFA transitions consume symbols; NFA
+  transitions labeled `""` are epsilon and do not increase word length.
+  GNFA regex labels can describe infinitely many words on one acyclic
+  edge, such as `a*`; graph-only SCC analysis cannot decide their finitude.
+  GNFA support is deliberately deferred rather than returning a wrong
+  boolean. No regex conversion is implemented.
+- **Tests:** 12 new functions, 26 new parametrized cases added to
+  `tests/fa/test_language_analysis.py`. They cover acyclic and empty
+  languages, useful consuming cycles and self-loops, accessible-only and
+  coaccessible-only cycles, a dead cycle branching from a useful state,
+  multiple cycles, partial DFA, epsilon-only NFA cycles, consuming edges
+  within and outside SCCs, None/heterogeneous states, nonempty and empty
+  trim results, exact bool, immutability, no upstream/trim/global-cycle
+  delegation, and explicit GNFA rejection. The full suite has 438 passed,
+  including all 412 previous cases. Strict mypy passes on 22 source files.
+- **Complexity:** useful-state analysis, SCC computation and one labeled
+  transition scan each cost O(|Q| + T) time and O(|Q| + |E|) peak space;
+  together they retain those bounds at constant factors, assuming
+  constant-time state hashing and equality. Q includes all states, E
+  emitted edges, and T exhausts iter_transitions. Recursive Tarjan can
+  reach Python's recursion limit. The GNFA rejection is O(1).
+- **ADR:** [ADR-0010](decisions/ADR-0010-productive-cycles-and-language-finiteness.md)
+  records the productive-cycle policy and GNFA scope. It reuses
+  [ADR-0005](decisions/ADR-0005-accessibility-analysis-layer.md),
+  [ADR-0008](decisions/ADR-0008-scc-analysis.md), and
+  [ADR-0009](decisions/ADR-0009-cycle-analysis.md), without rewriting them.
+- **Related requirements:** #15-#62 remain TODO. No word recognition,
+  execution trace, reachable-states API, or conversion is implemented.
 - **Git commit:** pending.

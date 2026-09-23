@@ -11,6 +11,37 @@ from automata_extensions.fa.base import ExtendedFA
 class ExtendedGNFA(ExtendedFA, GNFA):
     """Associe les mixins communs au comportement de GNFA."""
 
+    def is_finite(self) -> bool:
+        """Decline finiteness until GNFA regex labels can be analyzed.
+
+        A regex label such as ``a*`` can denote infinitely many words on
+        a single acyclic GNFA edge. The DFA/NFA useful-cycle test would
+        therefore give a misleading answer for this representation.
+
+        Returns
+        -------
+        bool
+            No result is returned for a GNFA in this phase.
+
+        Raises
+        ------
+        NotImplementedError
+            GNFA regex-label finiteness is outside requirement #14's
+            explicitly agreed DFA/NFA guarantee.
+
+        Complexity
+        ----------
+        O(1) time and space; no analysis or mutation is performed.
+
+        References
+        ----------
+        User clarification for requirement #14: preserve real finiteness
+        for DFA/NFA and defer regex-label semantics for GNFA. ADR-0010.
+        """
+        raise NotImplementedError(
+            "GNFA regex labels require semantic finiteness analysis"
+        )
+
     def _restrict_to_states(self, kept: FrozenSet[FAStateT]) -> Self:
         """Rebuild the GNFA transition table, retaining None-valued slots."""
         if not kept:

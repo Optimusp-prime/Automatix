@@ -1,6 +1,7 @@
 """Cycle analysis of finite-automaton transition graphs."""
 
 from collections.abc import Iterable
+from typing import FrozenSet, Protocol
 
 from automata.base.exceptions import InvalidStateError
 from automata.fa.fa import FAStateT
@@ -34,6 +35,18 @@ def _has_back_edge(
         if state not in colors and visit(state):
             return True
     return False
+
+
+class _UsefulSCCSource(_GraphSource, Protocol):
+    """Graph, useful states and SCC partition needed for finiteness."""
+
+    def useful_states(self) -> FrozenSet[FAStateT]:
+        """Return states on accepting paths."""
+        ...
+
+    def strongly_connected_components(self) -> list[FrozenSet[FAStateT]]:
+        """Partition the transition graph into SCCs."""
+        ...
 
 
 class CycleMixin:
@@ -126,3 +139,57 @@ class CycleMixin:
 
         successors = _build_successors(self)
         return _has_back_edge((state,), successors)
+
+    def is_finite(self: _UsefulSCCSource) -> bool:
+        """Return whether the recognized DFA/NFA language is finite.
+
+        A language is infinite only if an accepting path can traverse a
+        cycle that consumes at least one input symbol. A useful cycle made
+        solely of NFA epsilon transitions does not satisfy that condition.
+        GNFA regex labels require separate semantic analysis; the concrete
+        GNFA extension explicitly declines this query for now.
+
+        Returns
+        -------
+        bool
+            False if a consuming transition joins states of the same
+            useful strongly connected component; True otherwise.
+
+        Complexity
+        ----------
+        useful_states() builds forward and reverse adjacency, then the SCC
+        query builds adjacency again and one final transition scan checks
+        labels. Each is O(|Q| + T) time and O(|Q| + |E|) peak space, so the
+        total has those bounds at constant factors, assuming constant-time
+        state hashing and equality. Q is all states, E all emitted edges,
+        and T exhausts iter_transitions, including empty NFA target entries.
+        Recursive Tarjan may exceed Python's recursion limit on deep graphs.
+
+        References
+        ----------
+        Professor requirement #14: accessible and coaccessible cycle, as
+        supplied in the prompt; the source PDFs were not accessed. A cycle
+        must consume input to make the language genuinely infinite, as
+        explicitly clarified by the user. ADR-0005: useful states.
+        ADR-0009: cycle-analysis layer. ADR-0010: productive-cycle policy.
+        """
+        useful = self.useful_states()
+        if not useful:
+            return True
+
+        component_ids: dict[FAStateT, int] = {}
+        for component_id, component in enumerate(
+            self.strongly_connected_components()
+        ):
+            for state in component:
+                if state in useful:
+                    component_ids[state] = component_id
+
+        for source, target, label in self.iter_transitions():
+            if (
+                label != ""
+                and source in component_ids
+                and component_ids.get(source) == component_ids.get(target)
+            ):
+                return False
+        return True
