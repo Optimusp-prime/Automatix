@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #20 - Automaton completeness test (VERIFIED)
+Current feature: #21 - DFA completion (VERIFIED)
 
-Next planned feature: #21 - Completion (not started)
+Next planned feature: #22 - Complement (not started)
 
-Current phase: DFA transition-totality predicate verified
+Current phase: DFA completion verified through upstream delegation
 
 ## Infrastructure
 
@@ -75,7 +75,7 @@ confirms their names and contracts.
 | 18 | Predecessors of a state | `predecessors_graph(state) -> FrozenSet[FAStateT]` | `GraphMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_graph.py` | Direct neighbors from `_build_predecessors`; avoids upstream DFA word API collision. |
 | 19 | Induced subautomaton | `induced_subautomaton(states)` | `SubautomatonMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_subautomaton.py` | Exact requested state set; invalid structural subsets raise `InvalidStateError`; ADR-0012. |
 | 20 | Test whether an automaton is complete | `is_complete() -> bool` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Checks actual DFA transition totality, independent of `allow_partial`; #21 remains TODO. |
-| 21 | Completion | TBD | TBD | TODO | — | — |
+| 21 | Completion | `complete(trap_state=None) -> ExtendedDFA` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Delegates to upstream `to_complete`; fresh ExtendedDFA, optional collision-checked sink, same language. |
 | 22 | Complement | TBD | TBD | TODO | — | — |
 | 23 | Cartesian product of two automata | TBD | TBD | TODO | — | — |
 | 24 | Language inclusion | TBD | TBD | TODO | — | — |
@@ -1052,4 +1052,53 @@ confirms their names and contracts.
   restriction can create a partial DFA. No new ADR is needed.
 - **Related requirements:** #21-#62 remain TODO. No completion or
   complement operation was introduced.
+- **Git commit:** pending.
+
+## #21 - DFA completion
+
+- **Specification / French meaning:** complete a partial DFA (complétion)
+  by adding a nonaccepting sink for missing transitions. The professor
+  information came from the task prompt; the PDFs were not accessed.
+- **DFA-only scope / public API:** `complete(trap_state=None) -> ExtendedDFA`
+  in `CompletenessMixin` through `ExtendedDFA`. The optional argument follows
+  automata-lib's `DFA.to_complete` convention: None selects an automatic
+  collision-free negative integer; an explicit name is used only if a sink
+  is required.
+- **Upstream inspection / delegation:** automata-lib 9.2.0 `to_complete`
+  checks the actual transition table, copies an already complete DFA, and
+  otherwise calls its `_to_complete` constructor with `allow_partial=False`.
+  It returns the concrete `Self`, observed as a fresh ExtendedDFA in both
+  branches. `complete` delegates directly instead of duplicating that
+  reconstruction. The existing upstream `to_complete` API remains intact.
+- **Sink and collision policy:** the new state is nonfinal, loops on every
+  symbol, and receives every missing transition. Existing edges, alphabet,
+  initial state and final states remain unchanged. A requested name already
+  in states raises upstream `InvalidStateError` when the sink is needed.
+  A complete DFA gains no sink, even when `allow_partial=True`.
+- **Language / immutability / composability:** formerly missing transitions
+  still reject, so the language is preserved. The source is unchanged and
+  the returned ExtendedDFA supports existing extension methods. An induced
+  subautomaton that became partial can be completed and then satisfies
+  `is_complete()`.
+- **Tests:** 11 new functions and 20 parametrized cases in
+  `tests/fa/test_completeness.py` cover multiple missing edges and symbols,
+  sink self-loops and nonfinality, explicit and automatic sink naming,
+  collisions, already complete DFAs, language preservation on nine words,
+  empty alphabet, None/heterogeneous states, induced restriction,
+  immutability, extension composition, MRO and the mature reference's
+  executable completion example. The full suite has 599
+  passed, including all 579 prior cases; strict mypy passes on 30 files.
+- **Source compatibility:** verified against the documented `complete()`
+  example with one state and a missing `b` transition.
+- **Complexity:** O(|Q| × |Sigma| + V) worst-case time and
+  O(|Q| × |Sigma| + M) auxiliary space, including upstream reconstruction
+  and validation costs V and M. The already-complete branch copies the DFA.
+- **ADR reuse:** [ADR-0003](decisions/ADR-0003-common-extended-fa-layer.md)
+  places DFA-specific behavior, while
+  [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md) and
+  [ADR-0012](decisions/ADR-0012-exact-induced-subautomata.md) establish
+  fresh same-type transformations and partial results after restriction.
+  Upstream sink naming supplies the policy; no new ADR is required.
+- **Related requirements:** #22-#62 remain TODO. No complement operation
+  or other later feature was introduced.
 - **Git commit:** pending.

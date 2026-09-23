@@ -1,7 +1,7 @@
 """Total-transition predicate for deterministic finite automata."""
 
 from collections.abc import Mapping, Set
-from typing import Protocol
+from typing import Protocol, Self, cast
 
 from automata.fa.fa import FAStateT
 
@@ -19,8 +19,14 @@ class _DfaTransitionView(Protocol):
     def transitions(self) -> Mapping[FAStateT, Mapping[str, FAStateT]]: ...
 
 
+class _CompletableDFA(Protocol):
+    """Upstream completion operation used by the pedagogical API."""
+
+    def to_complete(self, trap_state: FAStateT | None = None) -> Self: ...
+
+
 class CompletenessMixin:
-    """Analyze DFA transition totality without modifying the automaton."""
+    """Test and restore DFA transition totality without mutating the source."""
 
     def is_complete(self: _DfaTransitionView) -> bool:
         """Return whether every state has a transition for every symbol.
@@ -53,3 +59,41 @@ class CompletenessMixin:
                 if symbol not in self.transitions[state]:
                     return False
         return True
+
+    def complete(self, trap_state: FAStateT | None = None) -> Self:
+        """Return a new equivalent DFA with a total transition function.
+
+        Missing transitions lead to one nonaccepting trap state, which loops
+        on every input symbol. Existing transitions are preserved. An already
+        complete DFA is copied without adding a trap state. The source
+        automaton is not modified.
+
+        Parameters
+        ----------
+        trap_state : FAStateT | None, default: None
+            Name for a new trap state. None requests automata-lib's
+            collision-free negative-integer name. The name is unused when
+            no trap state is needed.
+
+        Returns
+        -------
+        Self
+            Fresh ExtendedDFA with the same language and alphabet.
+
+        Raises
+        ------
+        InvalidStateError
+            If a needed trap state has a requested name already in states.
+
+        Complexity
+        ----------
+        O(|Q| × |Sigma| + V) time and O(|Q| × |Sigma| + M) auxiliary space
+        in the worst case. V and M denote upstream construction/validation
+        cost and temporary memory. Already-complete DFAs are copied.
+
+        References
+        ----------
+        Professor requirement #21; automata-lib 9.2.0 DFA.to_complete.
+        The source PDFs were not accessed.
+        """
+        return cast(Self, cast(_CompletableDFA, self).to_complete(trap_state))
