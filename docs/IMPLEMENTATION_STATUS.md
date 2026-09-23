@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #27 - Prefix-closed DFA language test (VERIFIED)
+Current feature: #28 - Greatest prefix-closed sublanguage (VERIFIED)
 
-Next planned feature: #28 - Greatest prefix-closed sublanguage (not started)
+Next planned feature: #29 - Distinguishable states (not started)
 
-Current phase: prefix-closure predicate via useful states verified
+Current phase: final-to-final transition filtering verified
 
 ## Infrastructure
 
@@ -82,7 +82,7 @@ confirms their names and contracts.
 | 25 | Language equality | `is_equivalent(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Mutual language inclusion; same-alphabet policy; no structural comparison. |
 | 26 | Automaton isomorphism | `is_isomorphic_to(other) -> bool` | `IsomorphismMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_isomorphism.py` | State bijection preserving initial state, finals and labeled transitions, including unreachable states. |
 | 27 | Prefix-closed language test | `is_prefix_closed() -> bool` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Every useful state must be final; empty language is prefix-closed. |
-| 28 | Greatest prefix-closed sublanguage | TBD | TBD | TODO | — | — |
+| 28 | Greatest prefix-closed sublanguage | `prefix_closed_sublanguage() -> ExtendedDFA` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Fresh ExtendedDFA with final-to-final edges; states and finals retained. |
 | 29 | Distinguishable states | TBD | TBD | TODO | — | — |
 | 30 | Myhill–Nerode equivalence classes | TBD | TBD | TODO | — | — |
 | 31 | Test whether an automaton is minimal | TBD | TBD | TODO | — | — |
@@ -1342,4 +1342,50 @@ confirms their names and contracts.
 - **ADR:** no new ADR; reuses the accepted DFA specialization and
   accessibility analysis policies.
 - **Related requirements:** #28-#62 remain TODO. No #28 API was added.
+- **Git commit:** pending.
+
+## #28 - Greatest prefix-closed DFA sublanguage
+
+- **Professor specification / mathematical meaning:** return the greatest
+  prefix-closed language contained in the source language: a word remains
+  exactly when the source accepts it and all its prefixes. The professor
+  PDFs were not accessed; the attached task text supplies this contract.
+- **Mature compatibility / public API:**
+  `prefix_closed_sublanguage() -> ExtendedDFA` is added to the existing
+  DFA-only `PrefixMixin`. A source-compatibility analogue verifies
+  `(d.is_prefix_closed(), d.prefix_closed_sublanguage().accepts_input(""))`
+  is `(False, True)` using a source that accepts epsilon but also accepts
+  a word with a rejected prefix. The exact mature fixture was not supplied;
+  the #27 three-state cycle cannot reproduce this particular observation
+  because its initial state is nonfinal.
+- **Transition filtering:** retain `q --a--> r` exactly when both `q` and
+  `r` are final. The source must be final because the prefix ending at q
+  must be accepted; the destination must be final because the next prefix
+  must be accepted. Preserve all states, final states, input symbols and
+  initial state, including states made unreachable by filtering.
+- **Empty / already closed cases:** a nonfinal initial state has no
+  surviving accepted word, so the result is an ordinary valid DFA for the
+  empty language, without dropping structural states. A source already
+  prefix-closed yields the same language in a fresh object, though some
+  irrelevant edges may be removed.
+- **Reconstruction / immutability:** build a new `type(self)` DFA from
+  filtered transition rows. Set `allow_partial=True` if filtering removes
+  required edges; otherwise retain the source setting. Never mutate self,
+  call `trim()` or `minimize()`, or complete the filtered result.
+- **Tests:** seven new tests in `tests/fa/test_prefix.py` cover the mature
+  analogue, all four finality combinations for edges, exact preservation
+  of structure other than transitions, good and bad branches, the greatest
+  property for every word of length at most four over a two-symbol
+  alphabet, empty result, empty source, already closed source, partial DFA,
+  cycles, None/heterogeneous states, language inclusion in the source,
+  prefix closure, composability and immutability. The full suite has
+  680 passed, including all 673 previous cases; strict mypy passes on
+  40 source files.
+- **Complexity:** O(|Q| + T + V) time and O(|Q| + T_kept + M) auxiliary
+  space, where T covers inspected transitions, T_kept the retained table,
+  and V/M upstream constructor and validation work/memory.
+- **ADR:** no new ADR; follows the accepted immutable ExtendedDFA
+  reconstruction policy and does not change ADR-0007.
+- **Related requirements:** #29-#62 remain TODO. No distinguishability,
+  equivalence-class or minimization API was added.
 - **Git commit:** pending.
