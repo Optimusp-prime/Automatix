@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #22 - DFA complement (VERIFIED)
+Current feature: #23 - Lazy DFA product (VERIFIED)
 
-Next planned feature: #23 - Cartesian product (not started)
+Next planned feature: #24 - Language inclusion (not started)
 
-Current phase: professor complement verified; minimization option deferred
+Current phase: reachable-pair DFA product verified
 
 ## Infrastructure
 
@@ -77,7 +77,7 @@ confirms their names and contracts.
 | 20 | Test whether an automaton is complete | `is_complete() -> bool` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Checks actual DFA transition totality, independent of `allow_partial`; #21 remains TODO. |
 | 21 | Completion | `complete(trap_state=None) -> ExtendedDFA` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Delegates to upstream `to_complete`; fresh ExtendedDFA, optional collision-checked sink, same language. |
 | 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True explicitly deferred to #32. |
-| 23 | Cartesian product of two automata | TBD | TBD | TODO | — | — |
+| 23 | Cartesian product of two automata | `product(other, is_final)` | `ProductMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_product.py` | Reachable tuple states only; caller selects finals; equal alphabets; upstream partial-trap convention. |
 | 24 | Language inclusion | TBD | TBD | TODO | — | — |
 | 25 | Language equality | TBD | TBD | TODO | — | — |
 | 26 | Automaton isomorphism | TBD | TBD | TODO | — | — |
@@ -1150,4 +1150,54 @@ confirms their names and contracts.
   reconstruction policies in ADR-0003 and ADR-0007; the deferred option
   is documented here without adding a new architecture decision.
 - **Related requirements:** #23-#62 remain TODO, especially #32.
+- **Git commit:** pending.
+
+## #23 - Lazy synchronized DFA product
+
+- **Professor contract / French meaning:** construct the cartesian product
+  (produit cartésien) lazily: states are tuples of component states, and
+  only pairs reachable from the pair of initial states are materialized.
+  The professor PDFs were not accessed; the task prompt supplies the
+  relevant specification and mature reference excerpt.
+- **Mature compatibility / public API:** `product(other, is_final)` in
+  `ProductMixin` through `ExtendedDFA` only. The callback receives the two
+  component states separately and alone decides which reachable pairs
+  are final. No implicit AND/OR finality rule is imposed.
+- **Lazy construction:** reuse automata-lib 9.2.0 `_cross_product` and
+  `_expand_dfa` with `retain_names=True` and `minify=False`. Their BFS
+  expands only reachable pairs, preserves tuple names and returns a fresh
+  ExtendedDFA; no full `Q1 × Q2` is built. The initial pair is
+  `(self.initial_state, other.initial_state)`.
+- **Alphabet policy:** require exactly equal `input_symbols` as upstream
+  binary DFA operations do; mismatches raise `SymbolMismatchError`.
+- **Partial DFA policy:** follow upstream's two-relevant-side product.
+  If only one component defines a symbol, the other advances to a
+  collision-free implicit trap state. If neither defines it, the product
+  transition is absent, so the result can remain partial. Synthetic trap
+  components appear only in reachable tuple states. The operands are not
+  completed or mutated.
+- **Source compatibility regression:** a three-state cycle reproduces
+  `sorted(d.product(d, is_final=lambda s1, s2: s1 == s2).states)` as
+  `[('0', '0'), ('1', '1'), ('2', '2')]`, with three states instead of all
+  nine cartesian pairs. The exact mature fixture was not supplied.
+- **Return type / immutability / composition:** the result is ExtendedDFA;
+  both operands are unchanged. Existing completeness, reachability and
+  complement APIs remain available on it. A raw upstream DFA is also a
+  valid second operand.
+- **Tests:** 10 new functions and 11 cases in `tests/fa/test_product.py`
+  cover initial/tuple states, synchronized edges, lazy omission of
+  unreachable pairs, constant and custom finality, cycles/self-loops,
+  alphabet mismatch, partial implicit traps, None/heterogeneous states,
+  source immutability, composition, DFA-only MRO and the mature example.
+  The full suite has 638 passed, including all 627 prior cases; strict
+  mypy passes on 34 source files.
+- **Complexity:** O(|Q1| + |Q2| + R × |Sigma| + V) expected time and
+  O(R × |Sigma| + M) auxiliary space, where R is the number of reachable
+  pairs including implicit traps, and V/M cover upstream construction
+  and validation. Callback evaluation and state hashing are assumed
+  constant-time.
+- **ADR:** no new ADR; the partial and alphabet rules follow the inspected
+  fixed upstream version and are recorded here for future binary operations.
+- **Related requirements:** #24-#62 remain TODO. No inclusion, union,
+  intersection or difference operation was implemented.
 - **Git commit:** pending.
