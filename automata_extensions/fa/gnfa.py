@@ -2,6 +2,7 @@
 
 from typing import FrozenSet, NoReturn, Self
 
+from automata.base.exceptions import InvalidStateError
 from automata.fa.fa import FAStateT
 from automata.fa.gnfa import GNFA
 
@@ -116,6 +117,9 @@ class ExtendedGNFA(ExtendedFA, GNFA):
                 initial_state=initial,
                 final_state=final,
             )
+
+        if self.final_state not in kept:
+            raise InvalidStateError("the GNFA final state must be retained")
 
         transitions = {
             source: {

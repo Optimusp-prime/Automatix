@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #18 - Direct predecessors of a state (VERIFIED)
+Current feature: #19 - Induced subautomaton (VERIFIED)
 
-Next planned feature: #19 - Induced subautomaton (not started)
+Next planned feature: #20 - Automaton completeness test (not started)
 
-Current phase: direct inverse-graph neighborhood verified through the common FA layer
+Current phase: exact-state reconstruction verified across ExtendedDFA/NFA/GNFA
 
 ## Infrastructure
 
@@ -73,7 +73,7 @@ confirms their names and contracts.
 | 16 | Execution trace of a word | `execution_trace(word: str)` | `WordMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_word.py` | Configurations from upstream; rejected words retain their yielded trace; partial DFA may emit `None`. |
 | 17 | States reachable from a given state | `reachable_states(state) -> FrozenSet[FAStateT]` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_accessibility.py` | Delegates to `dfs(state)`; includes start; inherits `InvalidStateError`. |
 | 18 | Predecessors of a state | `predecessors_graph(state) -> FrozenSet[FAStateT]` | `GraphMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_graph.py` | Direct neighbors from `_build_predecessors`; avoids upstream DFA word API collision. |
-| 19 | Induced subautomaton | TBD | TBD | TODO | — | — |
+| 19 | Induced subautomaton | `induced_subautomaton(states)` | `SubautomatonMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_subautomaton.py` | Exact requested state set; invalid structural subsets raise `InvalidStateError`; ADR-0012. |
 | 20 | Test whether an automaton is complete | TBD | TBD | TODO | — | — |
 | 21 | Completion | TBD | TBD | TODO | — | — |
 | 22 | Complement | TBD | TBD | TODO | — | — |
@@ -960,4 +960,60 @@ confirms their names and contracts.
   [ADR-0006](decisions/ADR-0006-reverse-graph-foundation.md).
 - **Related requirements:** #19-#62 remain TODO. No public
   `successors_graph` or induced-subautomaton API was added.
+- **Git commit:** pending.
+
+## #19 - Induced subautomaton
+
+- **Specification / French meaning:** extract the subautomaton induced by a
+  requested state set (sous-automate induit). The result contains exactly
+  that set and only transitions whose source and destination belong to it.
+  The professor information came from the task prompt; the PDFs were not
+  accessed.
+- **Public API / placement:** `induced_subautomaton(states)` in
+  `SubautomatonMixin` through `ExtendedFA`. It accepts an iterable once,
+  materializes a frozenset, and returns a fresh automaton of the same
+  Extended concrete type.
+- **Relation to ADR-0007 / trim:** the three private `_restrict_to_states`
+  reconstruction helpers established for trim are reused without
+  duplicating their transition filtering. The helper contract is now
+  declared abstractly on ExtendedFA for typing. Trim's exceptional
+  empty-language representative remains unchanged; induction rejects an
+  empty request and never adds states outside the requested set.
+- **Validation / structural states:** unknown or unhashable requested
+  states, an empty set, or a subset lacking `initial_state` raise upstream
+  `InvalidStateError`. GNFA additionally requires its singular
+  `final_state`; its concrete helper checks this explicitly. Other
+  constructor validation errors are not hidden.
+- **DFA reconstruction:** retain internal labeled transitions, original
+  alphabet and `final_states & requested`. A complete source may yield a
+  partial result with `allow_partial=True`; no sink state is created.
+- **NFA reconstruction / epsilon:** retain sources in the set and filter
+  each destination set, including epsilon transitions. Empty destination
+  sets remain valid; no closure or determinization is performed.
+- **GNFA reconstruction:** retain its initial and final states, remaining
+  regex labels and None-valued cells in the required table shape. Missing
+  final state is an error rather than an implicit addition.
+- **Immutability / composability:** the source states, transitions, finals
+  and alphabet remain unchanged. The fresh Extended result supports the
+  existing DFS, accessibility, reachability and language analyses.
+- **Tests:** 15 new functions and 33 parametrized cases in
+  `tests/fa/test_subautomaton.py` cover full and proper subsets, exact
+  states and same-type fresh results, missing/unknown/unhashable states,
+  one-pass generators, complete-to-partial DFA, singleton/self-loop,
+  filtered NFA destinations and epsilon, GNFA regex/None table and missing
+  final, None/heterogeneous states, composition, source immutability and
+  the distinction from trim's empty-language convention. The full suite
+  has 566 passed, including all 533 prior cases. Strict mypy passes on
+  27 source files.
+- **Complexity:** conservative O(|Q| + T + V) time for materialization,
+  validation, filtering and upstream reconstruction; Q is the source
+  state set, T covers examined transition entries, and V includes
+  constructor validation and GNFA regex parsing. Memory is proportional
+  to requested states, retained transitions and validation temporaries.
+- **ADR:** [ADR-0012](decisions/ADR-0012-exact-induced-subautomata.md)
+  records exact-set semantics and the distinction from
+  [ADR-0007](decisions/ADR-0007-automaton-restriction-policy.md), without
+  changing that accepted trim policy.
+- **Related requirements:** #20-#62 remain TODO. No completeness test,
+  completion operation or other later feature was introduced.
 - **Git commit:** pending.
