@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #23 - Lazy DFA product (VERIFIED)
+Current feature: #24 - DFA language inclusion (VERIFIED)
 
-Next planned feature: #24 - Language inclusion (not started)
+Next planned feature: #25 - Language equality (not started)
 
-Current phase: reachable-pair DFA product verified
+Current phase: inclusion via empty product with complement verified
 
 ## Infrastructure
 
@@ -78,7 +78,7 @@ confirms their names and contracts.
 | 21 | Completion | `complete(trap_state=None) -> ExtendedDFA` | `CompletenessMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_completeness.py` | Delegates to upstream `to_complete`; fresh ExtendedDFA, optional collision-checked sink, same language. |
 | 22 | Complement | `complement(*, retain_names=False, minify=False)` | `ComplementMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_complement.py` | Complete then invert finals; default unminimized; minify=True explicitly deferred to #32. |
 | 23 | Cartesian product of two automata | `product(other, is_final)` | `ProductMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_product.py` | Reachable tuple states only; caller selects finals; equal alphabets; upstream partial-trap convention. |
-| 24 | Language inclusion | TBD | TBD | TODO | — | — |
+| 24 | Language inclusion | `is_included_in(other) -> bool` | `InclusionMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_inclusion.py` | Tests empty language of self × complement(other); equal alphabets; partial DFA supported. |
 | 25 | Language equality | TBD | TBD | TODO | — | — |
 | 26 | Automaton isomorphism | TBD | TBD | TODO | — | — |
 | 27 | Prefix-closed language test | TBD | TBD | TODO | — | — |
@@ -1200,4 +1200,40 @@ confirms their names and contracts.
   fixed upstream version and are recorded here for future binary operations.
 - **Related requirements:** #24-#62 remain TODO. No inclusion, union,
   intersection or difference operation was implemented.
+- **Git commit:** pending.
+
+## #24 - DFA language inclusion
+
+- **Professor contract / mathematical meaning:** `L(self) ⊆ L(other)` iff
+  `L(self) ∩ complement(L(other))` is empty. The professor PDFs were not
+  accessed; the attached task text supplies the contract.
+- **Mature compatibility / public API:** `is_included_in(other) -> bool`
+  in DFA-only `InclusionMixin` through `ExtendedDFA`. The source example
+  `d.is_included_in(d) is True` has a dedicated regression test using the
+  same three-state cycle fixture shape as the product compatibility test.
+- **Implementation:** call `other.complement()`, build the lazy product
+  using `is_final(left, right)` iff left is final in self and right is
+  final in the complement, then return the product's `is_empty()` result.
+  No word enumeration or second product algorithm is introduced.
+- **Alphabet / partial DFA policy:** differing input alphabets propagate
+  `SymbolMismatchError` from product. The right operand's complement
+  handles completion before inversion; product handles missing left-side
+  transitions according to its established implicit-trap policy.
+- **Immutability / type:** the method returns exactly bool and modifies
+  neither operand. It accepts an ExtendedDFA as `other` so the project
+  complement contract, including its `minify=False` default, is used.
+- **Tests:** 10 new cases in `tests/fa/test_inclusion.py` cover source
+  compatibility and reflexivity, strict inclusion and reverse failure,
+  empty/nonempty languages, a three-symbol counterexample, partial DFAs,
+  mismatched alphabets, None/heterogeneous states, composition, immutable
+  operands and DFA-only MRO. The full suite has 648 passed, including all
+  638 previous cases; strict mypy passes on 36 source files.
+- **Complexity:** O((|Q1| + |Q2| + R) × |Sigma| + V) expected time and
+  O((|Q2| + R) × |Sigma| + M) auxiliary space, including the right
+  complement, reachable product construction and emptiness traversal.
+  R counts reachable product pairs; V/M cover upstream validation costs.
+- **ADR:** no new ADR; composition uses the accepted completion,
+  complement, product and accessibility semantics.
+- **Related requirements:** #25-#62 remain TODO. No `is_equivalent`,
+  union, intersection or difference API was implemented.
 - **Git commit:** pending.

@@ -8,11 +8,13 @@ from automata.fa.fa import FAStateT
 from automata_extensions.fa.base import ExtendedFA
 from automata_extensions.fa.dfa_mixins.complement import ComplementMixin
 from automata_extensions.fa.dfa_mixins.completeness import CompletenessMixin
+from automata_extensions.fa.dfa_mixins.inclusion import InclusionMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
 
 
 class ExtendedDFA(
-    CompletenessMixin, ComplementMixin, ProductMixin, ExtendedFA, DFA
+    CompletenessMixin, ComplementMixin, ProductMixin, InclusionMixin,
+    ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""
 
