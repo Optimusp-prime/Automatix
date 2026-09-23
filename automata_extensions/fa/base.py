@@ -10,6 +10,7 @@ from automata_extensions.fa.fa_mixins.grammaire import GrammaireMixin
 from automata_extensions.fa.fa_mixins.scc import SCCMixin
 from automata_extensions.fa.fa_mixins.traversal import TraversalMixin
 from automata_extensions.fa.fa_mixins.visualisation import VisualisationMixin
+from automata_extensions.fa.fa_mixins.word import WordMixin
 
 
 class ExtendedFA(
@@ -17,6 +18,7 @@ class ExtendedFA(
     CycleMixin,
     SCCMixin,
     TraversalMixin,
+    WordMixin,
     AnalyseMixin,
     ConversionMixin,
     GrammaireMixin,

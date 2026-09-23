@@ -11,6 +11,37 @@ from automata_extensions.fa.base import ExtendedFA
 class ExtendedGNFA(ExtendedFA, GNFA):
     """Associe les mixins communs au comportement de GNFA."""
 
+    def accepts(self, word: str) -> bool:
+        """Report that upstream GNFA cannot directly recognize words.
+
+        Parameters
+        ----------
+        word : str
+            Word whose membership was requested.
+
+        Returns
+        -------
+        bool
+            No result is returned for GNFA.
+
+        Raises
+        ------
+        NotImplementedError
+            automata-lib 9.2.0 GNFA has no word-reading implementation.
+
+        Complexity
+        ----------
+        O(1) time and space; no simulation is attempted.
+
+        References
+        ----------
+        automata-lib 9.2.0 ``GNFA.read_input_stepwise``;
+        professor requirement #15.
+        """
+        raise NotImplementedError(
+            "GNFA word recognition is unsupported by automata-lib 9.2.0"
+        )
+
     def is_finite(self) -> bool:
         """Decline finiteness until GNFA regex labels can be analyzed.
 

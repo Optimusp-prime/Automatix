@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #14 - Infinite-language decision (VERIFIED for DFA/NFA)
+Current feature: #15 - Word recognition (VERIFIED for DFA/NFA; GNFA unsupported upstream)
 
-Next planned feature: #15 - Word recognition (not started)
+Next planned feature: #16 - Execution trace (not started)
 
-Current phase: DFA/NFA finiteness verified; GNFA regex-label analysis deferred by user choice
+Current phase: word recognition verified through upstream delegation; GNFA direct recognition unavailable
 
 ## Infrastructure
 
@@ -69,7 +69,7 @@ confirms their names and contracts.
 | 12 | Cycle detection from a given state | `has_cycle_from(state) -> bool` | `CycleMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_cycle.py` | DFS back edge only from supplied state; InvalidStateError |
 | 13 | Empty-language decision | `is_empty() -> bool` | `AccessibilityMixin` via `ExtendedFA` | VERIFIED | `tests/fa/test_language_analysis.py` | No accessible accepting state; GNFA final_states; no upstream isempty delegation |
 | 14 | Infinite-language decision | `is_finite() -> bool` | `CycleMixin` via `ExtendedFA`; GNFA override | VERIFIED | `tests/fa/test_language_analysis.py` | DFA/NFA productive useful SCC; GNFA raises NotImplementedError by agreed scope; ADR-0010 |
-| 15 | Word recognition | TBD | TBD | TODO | — | — |
+| 15 | Word recognition | `accepts(word) -> bool` | WordMixin via ExtendedFA; GNFA override | VERIFIED | `tests/fa/test_word.py` | Delegates to `accepts_input`; GNFA raises `NotImplementedError` because upstream cannot read words. |
 | 16 | Execution trace of a word | TBD | TBD | TODO | — | — |
 | 17 | States reachable from a given state | TBD | TBD | TODO | — | — |
 | 18 | Predecessors of a state | TBD | TBD | TODO | — | — |
@@ -785,4 +785,43 @@ confirms their names and contracts.
   [ADR-0009](decisions/ADR-0009-cycle-analysis.md), without rewriting them.
 - **Related requirements:** #15-#62 remain TODO. No word recognition,
   execution trace, reachable-states API, or conversion is implemented.
+- **Git commit:** pending.
+
+## #15 - Word recognition
+
+- **Specification / French meaning:** decide whether a complete input word
+  belongs to the automaton's language (reconnaissance d'un mot). The
+  professor information came from the task prompt; the PDFs were not accessed.
+- **Public API / placement:** `accepts(word: str) -> bool` in `WordMixin`,
+  exposed through `ExtendedFA`. `str` matches upstream's `accepts_input`
+  signature. `ExtendedGNFA` overrides the method solely to report its
+  unsupported direct recognition clearly.
+- **Delegation:** the common method returns `self.accepts_input(word)`.
+  It does not reimplement simulation or call `read_input_stepwise` itself.
+- **DFA:** upstream deterministically reads the word; a missing transition
+  or invalid symbol is rejected with `False`, as observed in v9.2.0.
+- **NFA / epsilon:** upstream manages branching and epsilon closures,
+  including epsilon before or after consumption and acceptance of the
+  empty word through epsilon.
+- **GNFA limitation:** although GNFA inherits `accepts_input`, its
+  `read_input_stepwise` unconditionally raises `NotImplementedError` in
+  automata-lib 9.2.0. `ExtendedGNFA.accepts` therefore raises a descriptive
+  `NotImplementedError`; no regex engine or conversion was added.
+- **Invalid symbols / empty word:** the wrapper preserves upstream
+  `accepts_input` behavior. Observed DFA/NFA invalid symbols return `False`;
+  empty-word acceptance depends on the initial/final and epsilon structure.
+- **Tests:** 10 new test functions, 29 parametrized cases in
+  `tests/fa/test_word.py` cover DFA/NFA accepted and rejected words,
+  multiple lengths, partial DFA, invalid symbols, empty word, NFA branching
+  and epsilon, direct delegation, exact bool, immutability, common MRO and
+  explicit GNFA rejection. The full suite has 467 passed, including all
+  438 previous cases. Strict mypy passes on 24 source files.
+- **Complexity:** the alias adds O(1) time and space beyond upstream
+  simulation. DFA simulation is linear in word length; NFA simulation also
+  depends on active-state sets and epsilon closures. GNFA rejection is O(1).
+- **ADR:** [ADR-0002](decisions/ADR-0002-extension-strategy.md) establishes
+  upstream delegation when functionality already exists. No new durable
+  architectural decision or ADR was needed.
+- **Related requirements:** #16-#62 remain TODO. No execution-trace API
+  was introduced.
 - **Git commit:** pending.
