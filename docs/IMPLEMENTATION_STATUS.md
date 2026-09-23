@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #28 - Greatest prefix-closed sublanguage (VERIFIED)
+Current feature: #29 - DFA distinguishable states (VERIFIED)
 
-Next planned feature: #29 - Distinguishable states (not started)
+Next planned feature: #30 - Myhill-Nerode equivalence classes (not started)
 
-Current phase: final-to-final transition filtering verified
+Current phase: iterative DFA pair-table filling verified
 
 ## Infrastructure
 
@@ -83,7 +83,7 @@ confirms their names and contracts.
 | 26 | Automaton isomorphism | `is_isomorphic_to(other) -> bool` | `IsomorphismMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_isomorphism.py` | State bijection preserving initial state, finals and labeled transitions, including unreachable states. |
 | 27 | Prefix-closed language test | `is_prefix_closed() -> bool` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Every useful state must be final; empty language is prefix-closed. |
 | 28 | Greatest prefix-closed sublanguage | `prefix_closed_sublanguage() -> ExtendedDFA` | `PrefixMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_prefix.py` | Fresh ExtendedDFA with final-to-final edges; states and finals retained. |
-| 29 | Distinguishable states | TBD | TBD | TODO | — | — |
+| 29 | Distinguishable states | `distinguishable_states() -> set[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Iterative table filling over all states; partial DFA uses analysis-only completion. |
 | 30 | Myhill–Nerode equivalence classes | TBD | TBD | TODO | — | — |
 | 31 | Test whether an automaton is minimal | TBD | TBD | TODO | — | — |
 | 32 | Minimization | TBD | TBD | TODO | — | — |
@@ -1388,4 +1388,40 @@ confirms their names and contracts.
   reconstruction policy and does not change ADR-0007.
 - **Related requirements:** #29-#62 remain TODO. No distinguishability,
   equivalence-class or minimization API was added.
+- **Git commit:** pending.
+
+## #29 - DFA distinguishable states
+
+- **Professor contract / mathematical meaning:** two distinct DFA states
+  are distinguishable when some word is accepted from exactly one of them.
+  Analyze every original state, including unreachable states. The professor
+  PDFs were not accessed; the attached task text supplies the contract.
+- **Mature compatibility / public API:**
+  `distinguishable_states() -> set[frozenset[FAStateT]]` in DFA-only
+  `MinimizationMixin`. Each returned pair is unordered and has exactly two
+  distinct original states. A three-state cycle reproduces the mature
+  example's exact three-pair result.
+- **Algorithm:** private `_distinguishability_table` marks final/nonfinal
+  pairs immediately (epsilon witness), then uses a worklist of marked pairs
+  and reverse pair-symbol dependencies to propagate distinctions until a
+  fixed point. This is iterative table filling, with no state sorting or
+  public pair-table API.
+- **Partial DFA:** call existing `complete()` only for analysis. Its
+  collision-free nonfinal trap represents missing transitions. Filter the
+  final set of marked pairs to pairs made solely of original states; the
+  trap never appears publicly. Neither source states nor transitions change.
+- **Tests:** nine new tests in `tests/fa/test_minimization.py` cover the
+  mature example, epsilon marking, one- and two-symbol witnesses, equivalent
+  pairs, all/none marked, unreachable states, cycles, partial missing-edge
+  semantics, None/heterogeneous states, exact pair shape, immutability and
+  DFA-only MRO. An independent development oracle agreed for 150 randomly
+  generated four-state partial DFA. The full suite has 689 passed,
+  including all 680 previous cases; strict mypy passes on 42 source files.
+- **Complexity:** O(|Q|² × |Sigma| + V) expected time and
+  O(|Q|² × |Sigma| + M) auxiliary space. Analysis-only completion adds at
+  most one state; V/M include its upstream reconstruction and validation.
+- **ADR:** no new ADR; reuses the accepted immutable DFA completion policy
+  and keeps the table helper private for possible future #30 reuse.
+- **Related requirements:** #30-#62 remain TODO. No public equivalence
+  classes, minimality test or minimization method was added.
 - **Git commit:** pending.

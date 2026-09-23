@@ -10,13 +10,14 @@ from automata_extensions.fa.dfa_mixins.complement import ComplementMixin
 from automata_extensions.fa.dfa_mixins.completeness import CompletenessMixin
 from automata_extensions.fa.dfa_mixins.inclusion import InclusionMixin
 from automata_extensions.fa.dfa_mixins.isomorphism import IsomorphismMixin
+from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
 from automata_extensions.fa.dfa_mixins.prefix import PrefixMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
 
 
 class ExtendedDFA(
     CompletenessMixin, ComplementMixin, ProductMixin, InclusionMixin,
-    IsomorphismMixin, PrefixMixin,
+    IsomorphismMixin, PrefixMixin, MinimizationMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""
