@@ -13,6 +13,7 @@ from automata_extensions.fa.dfa_mixins.equation_system import DFAEquationSystemM
 from automata_extensions.fa.dfa_mixins.inclusion import InclusionMixin
 from automata_extensions.fa.dfa_mixins.isomorphism import IsomorphismMixin
 from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
+from automata_extensions.fa.dfa_mixins.myhill_nerode import MyhillNerodeMixin
 from automata_extensions.fa.dfa_mixins.prefix import PrefixMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
 from automata_extensions.fa.dfa_mixins.quotient import DFAQuotientMixin
@@ -28,7 +29,7 @@ from automata_extensions.fa.fa_mixins.regex_arden import ArdenMixin
 class ExtendedDFA(
     DFAEquationSystemMixin, ArdenMixin, RegexMixin, BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     GrammarMixin, InclusionMixin,
-    IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
+    IsomorphismMixin, PrefixMixin, MinimizationMixin, MyhillNerodeMixin, DeterminismMixin,
     LanguageOperationsMixin, DFAQuotientMixin, ReverseMixin,
     ExtendedFA, DFA
 ):

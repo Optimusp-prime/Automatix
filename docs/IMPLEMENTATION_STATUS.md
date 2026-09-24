@@ -123,7 +123,7 @@ confirms their names and contracts.
 | 56 | Derivation trees | `Grammar.derivation_tree(word)`; `ExtendedDFA/ExtendedNFA.derivation_tree(word)`; `DerivationStep.word()/sequence()` | `GrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_derivation.py` | Immutable derivation chain; deterministic BFS; exact mature sequence |
 | 57 | Arden lemma | `solve_arden(coefficient: Regex, constant: Regex) -> Regex` | `automata_extensions.equations` | VERIFIED | `tests/equations/test_arden.py` | Unique `X = A X ∪ B` solution with non-nullable A; ADR-0018 |
 | 58 | Systems of rational-language equations | `SystemOfEquations(...).solve()`; `ExtendedDFA/ExtendedNFA.to_equation_system()` | `automata_extensions.equations`; DFA/NFA equation mixins | VERIFIED | `tests/equations/test_system.py` | All-state Regex AST systems; epsilon NFA normalized via #37; ADR-0019 |
-| 59 | Myhill–Nerode classes / language quotients | TBD | TBD | TODO | — | — |
+| 59 | Myhill–Nerode classes / language quotients | `ExtendedDFA.myhill_nerode_quotients() -> tuple[ExtendedDFA, ...]` | `MyhillNerodeMixin` (DFA only) | VERIFIED | `tests/fa/test_myhill_nerode.py` | Reachable distinct left quotients; partial-DFA empty quotient; ADR-0020 |
 | 60 | Residual automaton | TBD | TBD | TODO | — | — |
 | 61 | Automaton morphisms | TBD | TBD | TODO | — | — |
 | 62 | Syntactic monoid | TBD | TBD | TODO | — | — |
@@ -2645,3 +2645,46 @@ pass. #58-#62 remain TODO.
 tests; the full suite (1184 passed, 1 Graphviz skip) and strict mypy (93
 source files) pass. Editable installation and public import/MRO checks pass.
 `git diff --check` passes. #59-#62 remain TODO.
+
+## #59 - Myhill–Nerode language quotients
+
+- **Professor requirement / API:** Construct the distinct left quotients of
+  a DFA language. Automatix adds
+  `ExtendedDFA.myhill_nerode_quotients() -> tuple[ExtendedDFA, ...]`.
+  The mature reference has no standalone #59 API; its existing
+  `equivalence_classes()` is the #30 partition of all stored states and
+  remains unchanged. ADR-0020 records the Automatix API choice.
+- **Construction:** #30 groups states by equal right-language. A BFS from
+  the initial state visits sorted input symbols, retains shortest witness
+  words, and selects one witness per reachable class. #47's
+  `left_quotient_word` builds each fresh quotient DFA. The source-language
+  quotient comes first; other explicit quotients follow first BFS witness.
+  No unreachable-only class is exported. For a reachable missing edge, an
+  implicit empty quotient is appended only when no reachable explicit state
+  already has an empty right-language. #5's coaccessibility query establishes
+  that deduplication. Repeated calls have the same quotient-language order;
+  state names inside returned automata are not order-constrained.
+- **Representation / boundary:** Each tuple item is a composable ExtendedDFA
+  recognizing exactly one quotient. The source is immutable. #60 will later
+  assemble a residual automaton; no residual-state names or transitions are
+  introduced here. The API is DFA-only.
+- **Complexity:** Let Q be source states, Σ its alphabet, T the transition
+  scan cost, E the stored edges, k the number of returned quotients (at most
+  |Q| + 1), and V/M upstream construction/validation time/memory per copied
+  quotient. Expected time is
+  O(|Q|²|Σ| + |Q|²α(|Q|) + |Σ| log |Σ| + |Q| + T +
+  k(|Q| + T + V)); space is
+  O(|Q|²|Σ| + |Q| + |E| + k(|Q| + T + M)). The pair-analysis term
+  comes from #30; the k term includes #47's full DFA reconstruction.
+- **Tests / source compatibility:** `tests/fa/test_myhill_nerode.py` covers
+  the mature three-state DFA's three quotient languages and unchanged #30
+  partition, inaccessible states, equivalent reachable states, complete and
+  partial dead states, the three quotients of `{a}`, empty/universal and
+  epsilon-accepting cases, stable BFS order, heterogeneous/None states,
+  pairwise language distinctness, #47 witness semantics, immutability and
+  composability. Git commit: pending.
+
+**#59 validation:** 8 focused tests; 166 targeted #29/#30/#47/#59 tests;
+the full suite (1192 passed, 1 skipped) and strict mypy (60 selected source
+and test files) pass. Editable installation, public imports/MRO and
+`git diff --check` pass. #60-#62 remain TODO.
