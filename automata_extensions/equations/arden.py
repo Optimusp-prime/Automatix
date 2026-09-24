@@ -3,6 +3,26 @@
 from automata_extensions.regex import Regex, _ast
 
 
+_UNSPECIFIED_VARIABLE = object()
+
+
+def _arden_multiplier(
+    coefficient: _ast.Node, variable: object = _UNSPECIFIED_VARIABLE
+) -> _ast.Node:
+    """Validate the unique-solution precondition and return ``A*``."""
+    if _ast.nullable(coefficient):
+        detail = (
+            ""
+            if variable is _UNSPECIFIED_VARIABLE
+            else f" for variable {variable!r}"
+        )
+        raise ValueError(
+            "Arden's lemma requires epsilon outside the coefficient language"
+            + detail
+        )
+    return _ast.star(coefficient)
+
+
 def solve_arden(coefficient: Regex, constant: Regex) -> Regex:
     """Solve ``X = A X ∪ B`` as the unique solution ``A* B``.
 
@@ -49,7 +69,5 @@ def solve_arden(coefficient: Regex, constant: Regex) -> Regex:
     """
     if not isinstance(coefficient, Regex) or not isinstance(constant, Regex):
         raise TypeError("coefficient and constant must be Regex values")
-    if _ast.nullable(coefficient._root):
-        raise ValueError("Arden's lemma requires epsilon outside the coefficient language")
-    root = _ast.concatenate(_ast.star(coefficient._root), constant._root)
+    root = _ast.concatenate(_arden_multiplier(coefficient._root), constant._root)
     return Regex._from_ast(root, coefficient._symbols | constant._symbols)

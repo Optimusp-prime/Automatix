@@ -122,7 +122,7 @@ confirms their names and contracts.
 | 55 | Automaton <-> regular grammar conversion | `to_grammar()` (DFA/NFA); `ExtendedNFA.from_grammar(grammar)`, `from_grammar_string(text)`; `Grammar` | `GrammarMixin`, `NFAGrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_grammar.py` | Right-linear, immutable, language-preserving conversion; approved mature divergence; ADR-0017 |
 | 56 | Derivation trees | `Grammar.derivation_tree(word)`; `ExtendedDFA/ExtendedNFA.derivation_tree(word)`; `DerivationStep.word()/sequence()` | `GrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_derivation.py` | Immutable derivation chain; deterministic BFS; exact mature sequence |
 | 57 | Arden lemma | `solve_arden(coefficient: Regex, constant: Regex) -> Regex` | `automata_extensions.equations` | VERIFIED | `tests/equations/test_arden.py` | Unique `X = A X ∪ B` solution with non-nullable A; ADR-0018 |
-| 58 | Systems of rational-language equations | TBD | TBD | TODO | — | — |
+| 58 | Systems of rational-language equations | `SystemOfEquations(...).solve()`; `ExtendedDFA/ExtendedNFA.to_equation_system()` | `automata_extensions.equations`; DFA/NFA equation mixins | VERIFIED | `tests/equations/test_system.py` | All-state Regex AST systems; epsilon NFA normalized via #37; ADR-0019 |
 | 59 | Myhill–Nerode classes / language quotients | TBD | TBD | TODO | — | — |
 | 60 | Residual automaton | TBD | TBD | TODO | — | — |
 | 61 | Automaton morphisms | TBD | TBD | TODO | — | — |
@@ -2593,3 +2593,55 @@ pass. #57-#62 remain TODO.
 the full suite (1158 passed, 1 Graphviz skip) and strict mypy (88 source
 files) pass. Editable installation, public import and `git diff --check`
 pass. #58-#62 remain TODO.
+
+## #58 - Rational-language equation systems
+
+- **Professor requirement / Automatix API:** Solve a system associated with
+  an automaton, distinct from #57's single equation. The supplied mature
+  executable reference establishes no standalone #58 API. Automatix chooses
+  `SystemOfEquations(variables, coefficients, constants)` and
+  `solve() -> Mapping[Variable, Regex]`, plus
+  `ExtendedDFA/ExtendedNFA.to_equation_system() -> SystemOfEquations`.
+  A solution is returned for every variable, including inaccessible states
+  in automaton-derived systems. Actual state objects are variable keys.
+- **Representation / validation:** Variables retain explicit order and may
+  be any hashable objects. Sparse coefficient rows and constants use #49's
+  immutable `Regex`; missing coefficients are the private empty-language
+  node. Duplicate/undeclared variables, missing constants and non-Regex
+  terms are rejected. Caller mappings are copied into nested read-only
+  views; `solve()` returns a fresh read-only mapping. Input alphabet
+  metadata is merged from every supplied term.
+- **Construction / epsilon policy:** The DFA/NFA methods share a private
+  builder that sorts all states by the project's deterministic state key,
+  scans consuming edges and unions parallel labels per ordered state pair.
+  Final states contribute epsilon; missing transitions contribute nothing.
+  A NFA with real epsilon edges first uses #37's state-preserving
+  `remove_epsilon_transitions()` and builds equations from its equivalent
+  normalized NFA. Inputs with non-single-character alphabet symbols are
+  rejected because #49's Regex alphabet is single-character.
+- **Elimination / reuse:** Ordered forward Arden elimination saves factored
+  rows, updates later equations and back-substitutes to solve all variables.
+  #57 and #58 share a private nullable-pivot check/star constructor; a
+  nullable effective diagonal raises `ValueError` naming the variable.
+  #58 uses #49 AST algebra for unresolved variable coefficients, rather
+  than trying to pass them as #57's plain Regex constant. #54's exact mature
+  string-producing implementation remains unchanged.
+- **Complexity / limits:** For n variables and m supplied coefficients,
+  construction copies O(n + m) entries. Dense solving performs O(n³)
+  algebraic updates plus AST comparisons/nullability and alphabet merging;
+  it is not bounded by O(n³) total runtime because unfolded expressions
+  and rendered strings may grow exponentially. For Q states, E consuming
+  edges and Σ symbols, direct automaton construction is expected
+  O(|Q| log |Q| + |E| + |Σ|) for DFA, plus structural equality costs.
+  NFA adds scans of empty destination entries; epsilon-NFA construction
+  additionally incurs #37's documented normalization cost.
+  Rendering `∅` remains diagnostic, not a public parser token.
+- **Tests / ADR:** `tests/equations/test_system.py` checks generic systems,
+  validation, immutable inputs/results, nullable pivots, DFA/NFA right
+  languages, epsilon cycles and state identities. ADR-0019 records the
+  standalone API and epsilon policy. Git commit: pending.
+
+**#58 validation:** 26 focused tests; 146 targeted #37/#49/#51/#54/#57/#58
+tests; the full suite (1184 passed, 1 Graphviz skip) and strict mypy (93
+source files) pass. Editable installation and public import/MRO checks pass.
+`git diff --check` passes. #59-#62 remain TODO.
