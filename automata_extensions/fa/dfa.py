@@ -14,11 +14,12 @@ from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
 from automata_extensions.fa.dfa_mixins.prefix import PrefixMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
+from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 
 
 class ExtendedDFA(
     CompletenessMixin, ComplementMixin, ProductMixin, InclusionMixin,
-    IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
+    IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin, ReverseMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""

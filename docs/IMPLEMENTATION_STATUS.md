@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #33/#34/#35 - Determinism, epsilon closure and determinization (VERIFIED)
+Current feature: #36/#37/#38 - Reversal, epsilon elimination and universality (VERIFIED)
 
-Next planned feature: #36 - Reverse (not started)
+Next planned feature: #39 - State elimination (not started)
 
-Current phase: DFA/NFA determinism and NFA accessible-subset construction verified
+Current phase: language reversal, epsilon propagation and complement-based universality verified
 
 ## Infrastructure
 
@@ -90,9 +90,9 @@ confirms their names and contracts.
 | 33 | Test whether an automaton is deterministic | `is_deterministic() -> bool` | DeterminismMixin (DFA/NFA) | VERIFIED | tests/fa/test_determinism.py | No GNFA semantics; partial does not imply nondeterministic |
 | 34 | Epsilon closure of a state or set of states | `epsilon_closure(state)`, `epsilon_closure_of_set(states)` | EpsilonMixin (NFA) | VERIFIED | tests/fa/test_epsilon.py | FrozenSet results; epsilon-only traversal; no cache |
 | 35 | Determinization | `determinize()`, `to_dfa()` | DeterminizationMixin (NFA) | VERIFIED | tests/fa/test_determinization.py | Reachable frozenset states; omit empty destinations; ExtendedDFA result |
-| 36 | Reverse | TBD | TBD | TODO | — | — |
-| 37 | Epsilon-transition elimination | TBD | TBD | TODO | — | — |
-| 38 | Universal-language decision | TBD | TBD | TODO | — | — |
+| 36 | Reverse | `reverse() -> ExtendedNFA` | ReverseMixin (DFA/NFA) | VERIFIED | tests/fa/test_reverse.py | Upstream NFA reversal; no GNFA semantics |
+| 37 | Epsilon-transition elimination | `remove_epsilon_transitions()`, `eliminate_lambda()` | EliminationMixin (NFA) | VERIFIED | tests/fa/test_elimination.py | Reuses #34; retains all states; alias delegates |
+| 38 | Universal-language decision | `is_universal() -> bool` | ComplementMixin (DFA) | VERIFIED | tests/fa/test_universality.py | Complement then emptiness; no minimization |
 | 39 | State elimination on a normalized ε-NFA/GNFA-like automaton | TBD | TBD | TODO | — | — |
 | 40 | DOT export | TBD | TBD | TODO | — | — |
 | 41 | SVG/PDF/TikZ export | TBD | TBD | TODO | — | — |
@@ -1668,4 +1668,136 @@ confirms their names and contracts.
   transformation principles; no accepted ADR is modified or new one needed.
   All 757 tests pass, including the #22 `complement(minify=True)` regression;
   strict mypy passes on 49 source files. #36-#62 remain TODO.
+- **Git commit:** pending.
+
+## #36 - Language reversal
+
+- **Professor definition / mature API:** `reverse() -> ExtendedNFA`
+  recognizes the mirror language: w is accepted by the source exactly when
+  reversed(w) is accepted by the result. Reverse edges and exchange the roles
+  of initial/final states. The supplied mature excerpt names `ReverseMixin`;
+  no unavailable PDF or full reference document was accessed.
+- **Placement / scope:** `fa/fa_mixins/reverse.py` supplies one shared
+  `ReverseMixin` attached specifically to ExtendedDFA and ExtendedNFA.
+  ExtendedGNFA receives no reverse method: regex-label reversal has no
+  supplied contract and is not approximated by reversing graph edges.
+- **Upstream inspection / delegation:** automata-lib 9.2.0 has no DFA.reverse.
+  For a DFA, `ExtendedNFA.from_dfa` preserves the graph with singleton
+  destination sets; then call `NFA.reverse` explicitly. For an ExtendedNFA,
+  call that upstream method directly, bypassing recursive wrapper dispatch.
+  Upstream uses `self.__class__` to construct the result, preserving
+  ExtendedNFA and its extension methods without ad-hoc representations.
+- **Structural convention:** upstream reverses all actual edges with their
+  labels, including epsilon, and always adds a fresh initial state. Its
+  epsilon targets are the old final states (possibly none); the old initial
+  is the sole new final. `FA._add_new_state` chooses the first unused
+  nonnegative integer, respecting ordinary set membership/collisions. The
+  alphabet and all original states are preserved, including None and
+  heterogeneous states. No source mutation or cache is introduced.
+- **Known limitation:** reversal itself supports None. Upstream NFA word
+  reading still rejects None through NetworkX, as recorded in ADR-0007;
+  structural tests and subsequent extension determinization cover that case.
+  No upstream simulation patch is introduced.
+- **Tests / source compatibility:** 22 cases in `tests/fa/test_reverse.py`
+  cover ab/ba, rejection, palindromes, empty words/alphabets, zero/multiple
+  finals, nondeterminism, reversed epsilon edges, cycles/self-loops,
+  collision-free initial naming, None/heterogeneous states, immutability,
+  ExtendedNFA result, double reversal and determinization composition.
+  All words of lengths 0-4 over {a,b} validate mirror/double-mirror semantics
+  on DFA/NFA fixtures. A three-state cycle consistent with the supplied
+  mature example checks `d.reverse().accepts_input("aaa") is True`.
+- **Complexity:** O(|Q| + T + V) time and O(|Q| + |E| + V_space) peak
+  space. T includes stored rows, symbol entries and examined destinations;
+  E is actual edges. V/V_space include freezing/validation and the optional
+  DFA-to-NFA construction, with expected constant-time state hashing.
+- **ADR / validation:** reuses ADR-0002 delegation, ADR-0003 specialization
+  and ADR-0007's existing None limitation. No accepted ADR is modified or
+  new ADR needed. All 803 tests pass; strict mypy passes on 54 source files.
+- **Git commit:** pending.
+
+## #37 - Epsilon-transition elimination
+
+- **Professor specification / mature API:** propagation through epsilon
+  closures produces an equivalent NFA without any `""` transition key.
+  `EliminationMixin` in `fa/nfa_mixins/elimination.py` exposes
+  `remove_epsilon_transitions() -> Self` on ExtendedNFA, returning a new
+  ExtendedNFA (or the same concrete subclass). This is epsilon suppression,
+  not determinization, trimming or minimization.
+- **Reuse / transition rule:** for each q, call #34 `epsilon_closure(q)`
+  once. For each input symbol, union direct destinations from that closure
+  and call #34 `epsilon_closure_of_set(move)` for the new target set.
+  Do not duplicate epsilon traversal or populate a persistent cache.
+  Empty destination sets are omitted; no epsilon key is constructed.
+- **Final-state propagation:** q is final iff its original epsilon closure
+  meets the old final set. This preserves acceptance of the empty word,
+  including through epsilon chains and cycles.
+- **State preservation / immutability:** retain exactly all source states,
+  input symbols and initial state, including inaccessible or useless states.
+  Build a new transition table and final set; never mutate the source.
+  None and heterogeneous states are supported by the extension closures.
+- **eliminate_lambda compatibility:** upstream's inspected signature is
+  `eliminate_lambda(self) -> Self`, so the mixin intentionally overrides it
+  with the same signature and a one-line delegation to
+  `remove_epsilon_transitions()`. This is the supplied mature compatibility
+  alias, not another professor requirement. No upstream algorithm is copied.
+- **Upstream findings:** direct `NFA.eliminate_lambda` on the current
+  ExtendedNFA works for the inspected string-state example, but removes
+  unreachable states, contrary to #37's state-preservation contract. With a
+  None state it raises `ValueError: None cannot be a node` through cached
+  NetworkX closures. Thus the supplied historical warning is not claimed
+  to be a universal failure in this hierarchy; concrete differences justify
+  using #34 instead. Upstream source and private methods remain untouched.
+- **Tests / source compatibility:** 13 cases in
+  `tests/fa/test_elimination.py` cover no epsilon, epsilon before/after
+  consumption, chains/cycles/branching, propagated finals and empty-word
+  acceptance, no epsilon keys, preserved states/alphabet/initial, None,
+  heterogeneous states, immutable source/cache, type and alias MRO.
+  All words of lengths 0-4 over {a,b} agree before/after elimination;
+  `remove_epsilon_transitions().determinize()` is equivalent to
+  `determinize()`. A minimal compatible fixture verifies the supplied
+  `n.remove_epsilon_transitions().accepts_input("a") is True` and the alias.
+- **Complexity:** for n=|Q|, s=|Sigma|, e epsilon edges and M the maximum
+  total destinations for one symbol over Q, time is
+  O(n*(n+e) + n*s*(n+M+e) + V). Closures are recomputed per source/move;
+  no optimistic linear bound or persistent cache is claimed. Peak space
+  is O(n + n*n*s + V_space), including the potentially dense result and
+  constructor freezing/validation V/V_space.
+- **ADR / validation:** reuses the accepted immutable transformation and
+  NFA specialization rules (ADR-0002/0003), and #34's closure contract.
+  No accepted ADR is changed. All 803 tests pass, including #34/#35 and
+  #22 optional minimization; strict mypy passes on 54 source files.
+- **Git commit:** pending.
+
+## #38 - Universal-language decision
+
+- **Professor criterion / mature API:** `is_universal() -> bool` means
+  L(A)=Sigma*. The implementation follows the required complement-then-empty
+  criterion exactly, in the existing DFA-only `ComplementMixin`.
+- **Implementation / dependencies:** `return self.complement().is_empty()`
+  reuses #22 and #13. The default `minify=False` avoids unnecessary
+  minimization. No separate reachability or word-enumeration algorithm,
+  source mutation or cache is introduced. NFA/GNFA receive no such API.
+- **Partial DFA semantics:** completion before complement correctly accounts
+  for missing transitions. A reachable missing edge can disprove universality
+  even if all original states are final; missing edges only in unreachable
+  components need not do so. No special partial-DFA branch is needed here.
+  For an empty alphabet, Sigma* contains epsilon, so universality holds
+  exactly when the initial state is final; the empty language is not universal.
+- **Tests / source compatibility:** 11 cases in
+  `tests/fa/test_universality.py` cover universal/nonuniversal/empty languages,
+  one/multiple/zero symbols, partial transitions, inaccessible nonfinal states,
+  None/heterogeneous states, exact bool, source/cache immutability and DFA-only
+  placement. Tests verify equality with `complement().is_empty()` and prohibit
+  minimization during the predicate. A compatible three-state cycle reproduces
+  the mature `d.is_universal() is False` example.
+- **Complexity:** O(n + (n+1)*|Sigma| + V) time and
+  O(n + (n+1)*|Sigma| + V_space) peak space, including completion/inversion,
+  freezing/validation and accessibility on the completed DFA with at most
+  n+1 states. No minimization cost is incurred.
+- **ADR / validation:** reuses existing complement, accessibility and
+  immutable-construction decisions; no new ADR. All 803 tests pass,
+  including #1-#35; strict mypy passes on 54 source files. Imports, MRO and
+  upstream constructors remain valid; reference/automata-lib is unchanged.
+  Requirements #39-#62 remain TODO; no Brzozowski minimization or future API
+  is introduced.
 - **Git commit:** pending.

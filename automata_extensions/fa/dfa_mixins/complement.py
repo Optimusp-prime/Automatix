@@ -1,8 +1,11 @@
 """DFA language complement, with completion before final-state inversion."""
 
-from typing import Protocol, Self, cast
+from typing import TYPE_CHECKING, Protocol, Self, cast
 
 from automata.fa.dfa import DFA
+
+if TYPE_CHECKING:
+    from automata_extensions.fa.dfa import ExtendedDFA
 
 
 class _CompletableDFA(Protocol):
@@ -19,6 +22,32 @@ class _MinimizableDFA(Protocol):
 
 class ComplementMixin:
     """Construct the complement of a deterministic finite automaton."""
+
+    def is_universal(self) -> bool:
+        """Return whether this DFA accepts every word over its alphabet.
+
+        Returns
+        -------
+        bool
+            True exactly when the complement language is empty. Completion
+            handles missing partial-DFA transitions before final inversion.
+            For an empty alphabet, universality means accepting epsilon.
+            The source is unchanged; no cache or minimization is added.
+
+        Complexity
+        ----------
+        O(n + (n+1)*|Sigma| + V) time and
+        O(n + (n+1)*|Sigma| + V_space) peak space, where n=|Q|.
+        Includes completion/inversion, constructor freezing and validation
+        V/V_space, and accessibility on the complete result, which has at
+        most n+1 states. Hashing/lookups are expected constant-time.
+
+        References
+        ----------
+        Professor requirement #38: complement then empty-language decision.
+        Supplied mature DFA complement domain; requirements #22 and #13.
+        """
+        return cast("ExtendedDFA", self).complement().is_empty()
 
     def complement(
         self, *, retain_names: bool = False, minify: bool = False
