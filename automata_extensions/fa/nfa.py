@@ -11,10 +11,12 @@ from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
 from automata_extensions.fa.nfa_mixins.elimination import EliminationMixin
 from automata_extensions.fa.nfa_mixins.epsilon import EpsilonMixin
+from automata_extensions.fa.nfa_mixins.set_operations import NFASetOperationsMixin
 
 
 class ExtendedNFA(
-    DeterminismMixin, ReverseMixin, EpsilonMixin, DeterminizationMixin,
+    DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
+    DeterminizationMixin,
     EliminationMixin, ExtendedFA, NFA
 ):
     """Associe les mixins communs au comportement de NFA."""

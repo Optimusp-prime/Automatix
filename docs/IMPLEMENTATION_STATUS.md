@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 1 (#1-#41) complete and verified
+Current feature: Level 2 #42-#44 complete and verified
 
-Next planned feature: #42 - Union (not started)
+Next planned feature: #45 - Concatenation (not started)
 
-Current phase: normalized GNFA elimination and common visualization exports verified
+Current phase: DFA/NFA language set operations verified
 
 ## Infrastructure
 
@@ -101,9 +101,9 @@ confirms their names and contracts.
 
 | # | Requirement | Planned public API | Layer / Mixin | Status | Tests | Notes |
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
-| 42 | Union | TBD | TBD | TODO | — | — |
-| 43 | Intersection | TBD | TBD | TODO | — | — |
-| 44 | Difference | TBD | TBD | TODO | — | — |
+| 42 | Union | `union(other, *, retain_names=False, minify=False)` (DFA); `union(other)` (NFA) | `DFASetOperationsMixin`, `NFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | DFA reuses lazy product with OR finals; NFA delegates to upstream; Extended results |
+| 43 | Intersection | `intersection(other, *, retain_names=False, minify=False)` (DFA); `intersection(other)` (NFA) | `DFASetOperationsMixin`, `NFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | DFA reuses lazy product with AND finals; NFA delegates to upstream; Extended results |
+| 44 | Difference | `difference(other, *, retain_names=False, minify=False)` (DFA) | `DFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | Intersection with right complement; DFA-only; Extended result |
 | 45 | Concatenation | TBD | TBD | TODO | — | — |
 | 46 | Kleene star | TBD | TBD | TODO | — | — |
 | 47 | Left quotient | TBD | TBD | TODO | — | — |
@@ -1916,3 +1916,100 @@ confirms their names and contracts.
 remain TODO. Validation: 826 passed, one renderer integration skip, strict
 mypy on 56 source files, `git diff --check` clean, editable install and public
 imports/MRO verified. `reference/automata-lib` remains unchanged.
+
+## #42 - Union of automaton languages
+
+- **Professor specification / meaning:** construct an automaton for
+  `L(self) ∪ L(other)` using a product or a fresh initial state. The source
+  PDFs were not accessed; the attached task supplies the specification.
+- **Mature compatibility:** the DFA source example
+  `d.union(d).accepts_input("aaa") is True` is reproduced with a three-state
+  cycle accepting `"aaa"`. The mature extension distinguishes DFA product
+  union from generic NFA rational union.
+- **Public API / placement / result:** DFA
+  `union(other, *, retain_names=False, minify=False)` in
+  `DFASetOperationsMixin` returns `ExtendedDFA`. NFA `union(other)` in
+  `NFASetOperationsMixin` returns `ExtendedNFA`. Optional DFA keyword names
+  preserve upstream override compatibility; the default never minimizes.
+  Explicit `minify=True` uses already-verified extension requirement #32.
+- **Construction / alphabets:** DFA delegates to #23 `product()` with OR
+  finality, retaining only reachable pairs and its implicit-trap behavior
+  for partial operands. DFA alphabets must match; mismatch raises
+  `SymbolMismatchError`. NFA wraps upstream 9.2.0 `NFA.union`, which adds
+  an epsilon-branching initial state and uses the union of alphabets. Its
+  `self.__class__` reconstruction retains the ExtendedNFA type. Neither
+  operand changes; no second product engine or determinization is added.
+- **Tests / complexity / limits:** `tests/fa/test_set_operations.py` covers
+  source compatibility, all acceptance combinations, partial DFA, epsilon,
+  mismatched alphabets, unreachable pairs, return types, immutability and
+  composition. DFA has expected O(|Q1| + |Q2| + R × |Sigma| + V) time and
+  O(R × |Sigma| + M) space, with R reachable pairs and V/M upstream
+  construction/validation. NFA union copies states and edges in
+  O(|Q1| + |Q2| + T1 + T2 + V) time and corresponding space. Explicit
+  minimization adds #32's cost. GNFA union is outside this requirement's
+  supported scope. Reuses ADR-0002 and the accepted #23 product policy;
+  no new ADR. Git commit: pending.
+
+## #43 - Intersection of automaton languages
+
+- **Professor specification / meaning:** synchronized Cartesian product
+  accepting exactly `L(self) ∩ L(other)`. The source PDFs were not accessed.
+- **Mature compatibility:** the exact DFA source assertion
+  `d.intersection(d) == d` passes; automata-lib 9.2.0 DFA equality compares
+  languages, so reachable tuple states do not contradict it. The supplied
+  regex NFA example also passes:
+  `n1.intersection(n2).accepts_input("ab") is False` for
+  `(a|b)*a` and `(a|b)*b`.
+- **Public API / placement / result:** DFA
+  `intersection(other, *, retain_names=False, minify=False)` in
+  `DFASetOperationsMixin` returns `ExtendedDFA`. NFA `intersection(other)`
+  in `NFASetOperationsMixin` returns `ExtendedNFA`. The DFA default is
+  unminimized; explicit minimization reuses #32.
+- **Construction / alphabets:** DFA reuses #23 `product()` with AND finality,
+  preserving its equal-alphabet `SymbolMismatchError` and partial-DFA
+  implicit-trap policy. NFA delegates to upstream 9.2.0
+  `NFA.intersection`: reachable pairs synchronize symbol edges and allow
+  epsilon moves in either component; the output alphabet is the union of
+  operand alphabets. Neither operand changes.
+- **Tests / complexity / limits:** the same focused file tests all four
+  acceptance combinations, partial DFA, epsilon NFA, alphabet policies,
+  exact return types, immutability and mature examples. DFA cost is
+  O(|Q1| + |Q2| + R × |Sigma| + V) expected time and
+  O(R × |Sigma| + M) space. NFA cost is O(R × |Sigma1 ∪ Sigma2| + G + V)
+  time and O(R + G + M) space, with G generated edges. V/M include upstream
+  construction and validation. GNFA intersection is not added. Reuses
+  ADR-0002 and #23; no new ADR. Git commit: pending.
+
+## #44 - Difference of DFA languages
+
+- **Professor specification / meaning:** construct `L(self) - L(other)`
+  by intersection with the complement of the right operand. The source
+  PDFs were not accessed.
+- **Mature compatibility:** the exact assertion
+  `d.difference(d).is_empty() is True` has a regression test.
+- **Public API / placement / result:**
+  `difference(other, *, retain_names=False, minify=False)` in the DFA-only
+  `DFASetOperationsMixin` returns a fresh `ExtendedDFA`. The default does
+  not minimize; optional explicit minimization uses #32.
+- **Construction / alphabets:** call `other.complement(minify=False)`, then
+  the extension `self.intersection(...)`. For an ExtendedDFA right operand
+  this is verified #22 completion then final inversion; for an upstream
+  DFA operand its 9.2.0 complement is invoked with minimization disabled.
+  The subsequent product enforces the existing equal-alphabet
+  `SymbolMismatchError` and handles a partial left operand. No independent
+  difference product or hidden NFA determinization is introduced.
+- **Tests / complexity / limits:** tests cover the source example, each
+  acceptance combination, `A - A`, subtraction of an empty language,
+  partial transitions, alphabet mismatch, ExtendedDFA type, immutability,
+  and composition. Expected time is
+  O(|Q2| × |Sigma| + |Q1| + R × |Sigma| + V), with space
+  O((|Q2| + R) × |Sigma| + M); this includes right completion, product,
+  and upstream construction/validation V/M. No ExtendedNFA or GNFA
+  difference API is added. Reuses ADR-0002, #22, #23 and #43; no new ADR.
+  Git commit: pending.
+
+**Level 2 #42-#44 validation:** 26 focused tests pass. With Graphviz `dot`
+available, the full suite has 853 passed, including all #1-#41 regressions
+and the four executable mature examples. Strict mypy passes on
+`automata_extensions` and `tests/fa` (60 source files); public imports/MRO
+and `git diff --check` pass. #45-#62 remain TODO.
