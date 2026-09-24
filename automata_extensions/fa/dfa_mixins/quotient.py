@@ -49,9 +49,9 @@ class DFAQuotientMixin:
         source = cast("ExtendedDFA", self)
         current: FAStateT = source.initial_state
         for symbol in word:
-            # Upstream DFA word reading treats None as its missing-edge
-            # sentinel, even when None is a structurally valid state.
-            if current is None or symbol not in source.transitions[current]:
+            # Membership in the actual row distinguishes a missing edge
+            # from None when None is a valid state name.
+            if symbol not in source.transitions[current]:
                 return source._restrict_to_states(frozenset())
             current = source.transitions[current][symbol]
 

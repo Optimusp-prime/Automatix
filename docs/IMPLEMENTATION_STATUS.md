@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #54 complete and verified
+Current feature: Final requirement #62 complete and verified
 
-Next planned feature: #55 - Automaton <-> regular grammar conversion (not started)
+Next planned feature: None; professor requirements #1–#62 are VERIFIED
 
-Current phase: DFA-to-regex language-equation conversion verified
+Current phase: All professor requirements verified
 
 ## Infrastructure
 
@@ -126,7 +126,7 @@ confirms their names and contracts.
 | 59 | Myhill–Nerode classes / language quotients | `ExtendedDFA.myhill_nerode_quotients() -> tuple[ExtendedDFA, ...]` | `MyhillNerodeMixin` (DFA only) | VERIFIED | `tests/fa/test_myhill_nerode.py` | Reachable distinct left quotients; partial-DFA empty quotient; ADR-0020 |
 | 60 | Residual automaton | `ExtendedDFA.residual_automaton() -> ExtendedDFA` | `ResidualMixin` (DFA only) | VERIFIED | `tests/fa/test_residual.py` | Complete DFA assembled from #59 quotients; canonical q-index names |
 | 61 | Automaton morphisms | `is_morphism_to(other, state_map) -> bool`; `project(symbol_map) -> ExtendedNFA`; `quotient_by(state_map) -> ExtendedNFA` | `MorphismMixin` (DFA/NFA) | VERIFIED | `tests/fa/test_morphism.py` | Forward edge/finality preservation, epsilon projection and non-congruent fusion; ADR-0021 |
-| 62 | Syntactic monoid | TBD | TBD | TODO | — | — |
+| 62 | Syntactic monoid | `ExtendedDFA.syntactic_monoid() -> frozenset[tuple[int, ...]]` | `SyntacticMonoidMixin` (DFA only) | VERIFIED | `tests/fa/test_syntactic_monoid.py` | Canonical #60 residual DFA; identity and letter closure; ADR-0022 |
 
 # Feature notes
 
@@ -2785,3 +2785,51 @@ source and test files) pass. Editable installation, public imports/MRO and
 the full suite (1232 passed, 1 skipped) and strict mypy (60 selected source
 and test files) pass. Editable installation, public imports/MRO and
 `git diff --check` pass. #62 remains TODO.
+
+## #62 - Syntactic monoid
+
+- **Professor requirement / mature compatibility:** Construct the syntactic
+  monoid from word-induced state transformations. The supplied mature
+  `SyntacticMonoidMixin.syntactic_monoid()` example reports exactly
+  `len(d.syntactic_monoid()) == 3` for the three-state modulo-`a` DFA. The
+  regression also checks its identity and two rotations exactly.
+- **Language semantics / normalization:** Close transformations on the
+  complete, accessible, minimal `residual_automaton()` from #60, not on an
+  arbitrary source DFA's possibly larger transition monoid. This removes
+  inaccessible and equivalent source states and materializes the empty
+  quotient of a partial DFA. Only `ExtendedDFA` exposes this API.
+- **Public representation:** `syntactic_monoid() -> frozenset[tuple[int, ...]]`.
+  The tuple of length `n` acts on #60's canonical `q0, ..., q(n-1)` in
+  **numeric** index order: entry `i == j` means `qi -> qj`. The identity is
+  `tuple(range(n))`, including for an empty alphabet. These immutable public
+  types are Automatix decisions because the mature excerpt does not specify
+  them; no dedicated algebra class or public multiplication method is added.
+- **Algorithm / composition:** Build one total generator per letter, then
+  extend each newly discovered transformation by every letter using a queue.
+  For word `w` followed by `a`, `tau_(wa) = tau_a ∘ tau_w`, so
+  `next[i] = letter[current[i]]`. Seen transformations are stored once; no
+  all-pairs closure or caching is needed. The source and residual DFA remain
+  unchanged. Literal tuple equality across arbitrary renamings is not
+  promised; the language monoid is invariant up to isomorphism.
+- **Edge cases / regression:** Empty and universal languages and an empty
+  alphabet produce the identity-only monoid; `{epsilon}` over a nonempty
+  alphabet has identity plus the sink action. Tests cover partial DFA
+  normalization, equivalent and inaccessible states, duplicated generators,
+  noncommuting actions with composition order, repeated calls, immutability,
+  DFA-only scope, and q-indices through `q10`. The test exposed a real #47
+  bug: `left_quotient_word` treated valid state `None` as a missing-edge
+  sentinel. Its row-membership check was corrected and a regression added
+  without changing #47's public API.
+- **Complexity:** With `n` residual states, `s` letters, `m` generated
+  transformations, and #60 time/space `C60`/`S60`, expected time is
+  `O(C60 + s log s + m*s*n)` and peak space is
+  `O(S60 + m*n + s*n)`. Tuple composition and hashing cost `O(n)` per
+  attempt; `m <= n**n`, so the output may be super-polynomial in `n`.
+  ADR-0022 records the normalization and representation decision.
+- **Tests / source compatibility:** `tests/fa/test_syntactic_monoid.py`
+  contains 14 focused cases; `tests/fa/test_word_quotient.py` contains the
+  #47 regression. Git commit: pending.
+
+**#62 validation:** 192 targeted #32/#47/#59/#60/#62 tests and the full
+suite (1247 passed, 1 skipped) pass; strict mypy passes on 62 selected
+source and test files. Requirements #1–#62 are all VERIFIED.
