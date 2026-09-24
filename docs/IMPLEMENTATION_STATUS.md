@@ -119,7 +119,7 @@ confirms their names and contracts.
 
 | # | Requirement | Planned public API | Layer / Mixin | Status | Tests | Notes |
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
-| 55 | Automaton <-> regular grammar conversion | TBD | TBD | TODO | — | — |
+| 55 | Automaton <-> regular grammar conversion | `to_grammar()` (DFA/NFA); `ExtendedNFA.from_grammar(grammar)`, `from_grammar_string(text)`; `Grammar` | `GrammarMixin`, `NFAGrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_grammar.py` | Right-linear, immutable, language-preserving conversion; approved mature divergence; ADR-0017 |
 | 56 | Derivation trees | TBD | TBD | TODO | — | — |
 | 57 | Arden lemma | TBD | TBD | TODO | — | — |
 | 58 | Systems of rational-language equations | TBD | TBD | TODO | — | — |
@@ -2423,4 +2423,77 @@ MRO and `git diff --check` pass. #54-#62 remain TODO.
 suite has 1110 passed and 1 environment-dependent Graphviz test skipped,
 including all #1-#53 regressions. Strict mypy passes on 78 source files.
 Editable-install imports, DFA-only MRO and `git diff --check` pass.
-#55-#62 remain TODO.
+#55-#62 remained TODO at #54 verification.
+
+## #55 - Automaton and right-linear regular grammar conversion
+
+- **Professor requirement / public API:** Convert automata and right-linear
+  regular grammars by associating states with nonterminals and transitions
+  with productions, preserving the language. Public `Grammar` lives in
+  `automata_extensions.grammar`; `ExtendedDFA.to_grammar()` and
+  `ExtendedNFA.to_grammar()` return it. `ExtendedNFA.from_grammar(grammar)`
+  and `ExtendedNFA.from_grammar_string(text)` return fresh ExtendedNFA
+  objects. Regex-labeled ExtendedGNFA is outside this conversion. Upstream
+  automata-lib 9.2.0 has no grammar model or equivalent parser.
+- **Immutable grammar model:** `Grammar(terminals, nonterminals,
+  start_symbol, productions)` stores frozensets and structural
+  `(head: str, word: str, target: str | None)` triples. A continuation target
+  means `A -> wB`; `None` means `A -> w`. Empty `word` means epsilon,
+  including unit `A -> B` and terminal-only `A -> epsilon`. Terminals are
+  single-character symbols, matching upstream word reading. Constructor
+  validation rejects undeclared symbols and invalid productions.
+- **Automaton to grammar:** Each DFA/NFA state becomes one nonterminal;
+  each `iter_transitions()` edge becomes a continuation production; each
+  final state gets an epsilon production. NFA epsilon edges become unit
+  productions. Readable ASCII identifier state names are retained when
+  safe; other heterogeneous states receive collision-free `Q0`, `Q1`, ...
+  names in deterministic string/type/repr order. Distinct states with
+  indistinguishable naming keys are rejected instead of assigned names
+  from nondeterministic set order.
+- **Grammar to NFA / text syntax:** Nonterminals become NFA states, unit
+  rules become epsilon edges, epsilon-only terminal rules make their head
+  final, and nonempty terminal-only rules lead to a fresh shared accepting
+  state. Multi-character terminal words are expanded through fresh integer
+  intermediate states, one consumed character per edge. The text parser
+  accepts multiline `A -> rhs | rhs`, discovers all LHS declarations first,
+  takes the first LHS as start, interprets the longest declared RHS suffix
+  as continuation, and uses `()` for epsilon (as in #49/#53/#54). Repeated
+  LHS lines add alternatives. An undeclared uppercase trailing nonterminal
+  or malformed line raises `ValueError`. For uppercase literal terminals or
+  unusual symbol names, use the structural `Grammar` API.
+- **Mature compatibility / approved divergence:** The unambiguous executed
+  mature observation `type(d.to_grammar()).__name__ == "Grammar"` passes.
+  The mature executed example reports `False` for
+  `from_grammar_string("S -> aS | b").accepts_input("aab")`; the stated
+  professor grammar generates `aab` by `S -> aS -> aaS -> aab`.
+  Accordingly Automatix returns `True`, as explicitly approved and recorded
+  in ADR-0017. The mature implementation's internal cause is unknown.
+- **Immutability, tests, complexity:** Grammar input collections are copied
+  to immutable frozensets. Conversions leave automata and Grammar unchanged.
+  `tests/fa/test_grammar.py` has 22 parameterized cases covering mature
+  type compatibility, the approved `a*b` divergence, DFA/NFA round trips,
+  partial and inaccessible states, nondeterminism/epsilon, unit and epsilon
+  rules, multi-character RHS, malformed text, heterogeneous states,
+  deterministic naming and immutability. Let Q be automaton states,
+  Sigma its alphabet, T scanned transition-table entries plus emitted edges,
+  P productions, N grammar nonterminals, L total terminal-word length,
+  K the maximum production-key comparison length, and V upstream NFA
+  construction/validation. Automaton conversion takes expected
+  O(|Q| log |Q| + |Sigma| + T + |P|) time, including deterministic naming;
+  NFA epsilon and nondeterministic destinations count as individual edges,
+  while empty destination entries still cost a scan. Grammar construction
+  itself takes O(|N| + |Sigma| + |P| + L). Grammar-to-NFA takes expected
+  O(|N| + |Sigma| + |P| + L + |P| log(|P| + 1) * K + V), including stable
+  rule ordering and intermediate states. For text length B and maximum
+  declared-name length D, parsing plus conversion takes expected
+  O(B + |P|*|N|*D + |P| log(|P| + 1) * K + V), because each alternative
+  checks all declared suffixes. The docstrings state memory bounds.
+  A tested upstream limitation remains: a partial DFA with `None` both as
+  final state and as the upstream missing-transition sentinel can report
+  acceptance incorrectly on a missing edge; #55 does not alter upstream.
+  Git commit: pending.
+
+**#55 validation:** 22 focused tests, 75 focused conversion/regression tests,
+and the full suite (1132 passed, 1 environment-dependent Graphviz skip) pass.
+Strict mypy passes on 83 source files. Public imports, MRO, editable-install
+and `git diff --check` are verified. #56-#62 remain TODO.

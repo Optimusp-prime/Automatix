@@ -17,6 +17,7 @@ from automata_extensions.fa.dfa_mixins.product import ProductMixin
 from automata_extensions.fa.dfa_mixins.quotient import DFAQuotientMixin
 from automata_extensions.fa.dfa_mixins.set_operations import DFASetOperationsMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
+from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.fa_mixins.regex import RegexMixin
@@ -25,7 +26,7 @@ from automata_extensions.fa.fa_mixins.regex_arden import ArdenMixin
 
 class ExtendedDFA(
     ArdenMixin, RegexMixin, BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
-    InclusionMixin,
+    GrammarMixin, InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
     LanguageOperationsMixin, DFAQuotientMixin, ReverseMixin,
     ExtendedFA, DFA

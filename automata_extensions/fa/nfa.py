@@ -8,18 +8,20 @@ from automata.fa.nfa import NFA
 from automata_extensions.fa.base import ExtendedFA
 from automata_extensions.fa.fa_mixins.brzozowski import BrzozowskiMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
+from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
 from automata_extensions.fa.nfa_mixins.elimination import EliminationMixin
 from automata_extensions.fa.nfa_mixins.epsilon import EpsilonMixin
+from automata_extensions.fa.nfa_mixins.grammar_nfa import NFAGrammarMixin
 from automata_extensions.fa.nfa_mixins.quotient import NFAQuotientMixin
 from automata_extensions.fa.nfa_mixins.set_operations import NFASetOperationsMixin
 from automata_extensions.fa.nfa_mixins.thompson import ThompsonMixin
 
 
 class ExtendedNFA(
-    ThompsonMixin, BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
+    ThompsonMixin, NFAGrammarMixin, GrammarMixin, BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
     DeterminizationMixin,
     EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, ExtendedFA, NFA
 ):
