@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #52 complete and verified
+Current feature: Level 2 #53 complete and verified
 
-Next planned feature: #53 - DFA -> regex by state elimination (not started)
+Next planned feature: #54 - DFA -> regex by language equations / Arden (not started)
 
-Current phase: NFA-to-DFA conversion verified by reuse of #35
+Current phase: DFA-to-regex state elimination verified
 
 ## Infrastructure
 
@@ -112,7 +112,7 @@ confirms their names and contracts.
 | 50 | Brzozowski automaton / minimization | `brzozowski_minimize() -> ExtendedDFA` | `BrzozowskiMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_brzozowski.py` | Double reversal/determinization with private reverse-start normalization; ADR-0016 |
 | 51 | Regex -> NFA conversion using Thompson construction | `ExtendedNFA.from_regex(regex, *, input_symbols=None) -> ExtendedNFA` | `ThompsonMixin` | VERIFIED | `tests/fa/test_thompson.py` | Explicit Thompson construction over #49 AST; ADR-0015 |
 | 52 | NFA -> DFA conversion using subset construction | `determinize() -> ExtendedDFA`, `to_dfa() -> ExtendedDFA` | `DeterminizationMixin` (reuse #35) | VERIFIED | `tests/fa/test_determinization.py` | Reachable epsilon-closed subsets; `to_dfa` delegates; no second algorithm |
-| 53 | DFA -> regex by state elimination | TBD | TBD | TODO | — | — |
+| 53 | DFA -> regex by state elimination | `ExtendedDFA.to_regex() -> str | None` | `RegexMixin` (DFA only) | VERIFIED | `tests/fa/test_dfa_to_regex.py` | Lexicographic state elimination; empty language follows #39 |
 | 54 | DFA -> regex by language equations / Arden | TBD | TBD | TODO | — | — |
 
 ## Level 3
@@ -2328,3 +2328,48 @@ MRO and `git diff --check` pass. #52-#62 remain TODO.
 passed and 1 environment-dependent Graphviz test skipped. Strict mypy passes
 on 74 source files. Editable-install imports, MRO and `git diff --check` pass.
 #53-#62 remain TODO.
+
+## #53 - DFA to regex by state elimination
+
+- **Professor contract / public API:** successively eliminate intermediate
+  states after normalizing the DFA with a fresh entry and exit. The DFA-only
+  `RegexMixin` exposes `ExtendedDFA.to_regex() -> str | None`. The mature
+  reference specifies `str` for its nonempty example; for an empty language
+  the user explicitly chose `None`, matching VERIFIED #39's actual upstream
+  behavior. It must not be mistaken for epsilon (`""`). No source automaton
+  is mutated.
+- **Reuse and ordering:** `ExtendedGNFA.from_dfa(self)` supplies #39's
+  verified normalization: fresh entry/exit and epsilon connections to the
+  original initial/final states. #53 then copies its label table and applies
+  `R_ij := R_ij | R_ik (R_kk)* R_kj` to original states in lexical order,
+  retaining the direct edge first in each union. Heterogeneous state labels
+  use type/repr tie-breakers after their string spelling. Missing edges use
+  `None`, epsilon uses `""`, and an explicit epsilon alternative is rendered
+  with `()` (understood by both upstream and #51). Absent DFA transitions
+  remain absent. No global optimization or minimum-regex claim is made.
+- **Mature compatibility / relation to #39:** the existing three-state
+  fixture produces exactly `(b*|b*ab*a((b|ab*ab*a))*ab*)`. In contrast,
+  upstream `GNFA.from_dfa(d).to_regex()` yields `(ab*ab*a|b)*` because it
+  chooses a different elimination order. Production does not delegate to
+  `GNFA.to_regex()`, and inherited ExtendedGNFA behavior and #39 tests are
+  unchanged. #49's AST normalization is deliberately not applied because it
+  would erase the required verbose structure. There is no new durable
+  cross-feature policy requiring an ADR; ADR-0002/0003/0015 remain intact.
+- **Tests / complexity / limits:** `tests/fa/test_dfa_to_regex.py` covers the
+  exact mature string plus independent NFA language comparison, empty and
+  epsilon languages, finite/partial/cyclic DFA, loops, multiple finals,
+  parallel symbols, inaccessible and heterogeneous states, repeated calls,
+  source immutability and MRO. #51 parses generated expressions where their
+  syntax lies within its classical grammar. A separate read-only enumeration
+  checked 324 two-state partial DFA/finality combinations against sampled
+  words. For n source states, elimination performs O(n**3) label updates
+  after GNFA construction; string-copying time and space depend on
+  intermediate expression lengths and can grow exponentially. The `None`
+  empty-language result cannot be passed directly to #51, whose grammar has
+  no empty-language token. Git commit: pending.
+
+**#53 validation:** 82 focused #53/#39/#49/#51 tests pass. The full suite
+has 1099 passed and 1 environment-dependent Graphviz test skipped, including
+all #1-#52 regressions. Strict mypy passes on `automata_extensions`,
+`tests/fa` and `tests/regex` (76 source files). Editable-install imports,
+MRO and `git diff --check` pass. #54-#62 remain TODO.
