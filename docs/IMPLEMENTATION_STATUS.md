@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #45-#46 complete and verified
+Current feature: Level 2 #47-#48 complete and verified
 
-Next planned feature: #47 - Left quotient (not started)
+Next planned feature: #49 - Brzozowski derivatives (not started)
 
-Current phase: DFA/NFA concatenation and Kleene star verified
+Current phase: DFA/NFA left and right word quotients verified
 
 ## Infrastructure
 
@@ -106,8 +106,8 @@ confirms their names and contracts.
 | 44 | Difference | `difference(other, *, retain_names=False, minify=False)` (DFA) | `DFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | Intersection with right complement; DFA-only; Extended result |
 | 45 | Concatenation | `concatenation(other: DFA \| NFA) -> ExtendedNFA` | `LanguageOperationsMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_rational_operations.py` | DFA converts via ExtendedNFA.from_dfa; delegates epsilon construction to NFA.concatenate |
 | 46 | Kleene star | `kleene_star() -> ExtendedNFA` | `LanguageOperationsMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_rational_operations.py` | DFA converts via ExtendedNFA.from_dfa; delegates new initial/final epsilon construction to NFA.kleene_star |
-| 47 | Left quotient | TBD | TBD | TODO | — | — |
-| 48 | Right quotient | TBD | TBD | TODO | — | — |
+| 47 | Left quotient | `left_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin` | VERIFIED | `tests/fa/test_word_quotient.py` | DFA changes initial state; NFA links a fresh initial state to the post-word epsilon-closed configuration |
+| 48 | Right quotient | `right_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin`; shared private helper | VERIFIED | `tests/fa/test_word_quotient.py` | Reverse, left quotient by reversed word, reverse; DFA determinizes result |
 | 49 | Brzozowski derivatives | TBD | TBD | TODO | — | — |
 | 50 | Brzozowski automaton / minimization | TBD | TBD | TODO | — | — |
 | 51 | Regex -> NFA conversion using Thompson construction | TBD | TBD | TODO | — | — |
@@ -2076,3 +2076,81 @@ pass with Graphviz `dot` available, including every previously verified
 #1-#44 test and all four supplied source examples. Strict mypy passes on
 `automata_extensions` and `tests/fa` (62 source files); public imports,
 MRO and `git diff --check` pass. #47-#62 remain TODO.
+
+## #47 - Left quotient by a word
+
+- **Professor requirement / mathematics:** calculate the states reached
+  after reading a word. For word `w`, the result recognizes
+  `w^{-1}L = {u | wu in L}`. The source PDFs were not accessed; the attached
+  request supplies this specification.
+- **Mature compatibility / API:** the public name is
+  `left_quotient_word(word: str)`, avoiding upstream
+  `NFA.left_quotient(other_automaton)`. The mature source fixture `d` from
+  `tests/fa/test_state_elimination.py` verifies
+  `d.left_quotient_word("a").accepts_input("aa") is True`. The return type
+  is ExtendedDFA for ExtendedDFA, ExtendedNFA for ExtendedNFA. Separate
+  `DFAQuotientMixin` and `NFAQuotientMixin` preserve concrete semantics;
+  neither is installed on ExtendedGNFA.
+- **DFA strategy:** follow the word's defined transitions and construct a
+  fresh DFA with the reached state as initial, retaining states, alphabet,
+  transitions, finals and `allow_partial`. A missing transition, including
+  one for an unknown symbol, returns the existing same-type empty-language
+  representative via `_restrict_to_states(frozenset())`; no trimming or
+  minimization is implicit. The empty word preserves the language.
+  Upstream DFA reading treats `None` as its missing-edge sentinel even
+  when it is a structural state; the method follows that reading behavior.
+- **NFA strategy:** reuse the last configuration of #16
+  `execution_trace(word)`, including epsilon closure even for a rejected
+  word. Add a collision-free initial state with epsilon edges to those
+  active states; if the set is empty, add no edge. Clone transition rows
+  and retain the original finals and alphabet. No determinization or
+  source mutation occurs. Upstream NFA word reading with a state named
+  `None` retains the limitation recorded in ADR-0007.
+- **Tests / complexity / ADR:** `tests/fa/test_word_quotient.py` verifies
+  `result.accepts_input(u) == source.accepts_input(w + u)` for many DFA/NFA
+  words, partial/missing transitions, unknown symbols, epsilon moves,
+  multiple NFA active states, one-state and empty languages, fresh types,
+  immutability and composition. DFA costs O(|w| + |Q| + T + V) time and
+  O(|Q| + T + M) space including reconstruction/validation V/M. NFA cost
+  includes upstream trace simulation (up to O(|w| × |Q|) trace space),
+  O(|Q| + T) graph copying and validation. Reuses ADR-0002, ADR-0003 and
+  the established empty-language reconstruction policy; no new ADR.
+  Git commit: pending.
+
+## #48 - Right quotient by a word
+
+- **Professor requirement / mathematics:** use the dual construction
+  through reversal. For word `w`, the result recognizes
+  `Lw^{-1} = {u | uw in L}`. The common private helper applies #36
+  `reverse()`, #47 `left_quotient_word(w[::-1])`, then `reverse()` again.
+- **Mature compatibility / API:** the public name is
+  `right_quotient_word(word: str)`, distinct from upstream
+  `NFA.right_quotient(other_automaton)`, whose behavior is untouched.
+  The same mature source fixture verifies
+  `d.right_quotient_word("a").accepts_input("aa") is True`; together with
+  #47 the observable pair is exactly `(True, True)`.
+- **Types / construction:** NFA returns the reversed composition directly
+  as a fresh ExtendedNFA. Reversing a DFA produces an NFA, so the DFA
+  specialization determinizes the result with verified #35 to return a
+  fresh ExtendedDFA. This is the only type-restoring conversion; no
+  minimization or unrelated right-quotient algorithm is introduced.
+  Both preserve the source alphabet and language under the empty word.
+  An unknown symbol yields an empty quotient, consistent with upstream
+  word rejection and the #47 construction. Sources remain unchanged.
+- **Tests / complexity / limits:** tests check
+  `result.accepts_input(u) == source.accepts_input(u + w)` for multiple
+  DFA/NFA words, including partial DFA, epsilon transitions, empty and
+  unknown words, one-state languages, a two-symbol suffix that requires
+  reversing the word, return types, immutability, composability, public
+  imports and MRO. The NFA cost is two graph reversals plus #47 simulation
+  and reconstruction, including intermediate validation. DFA adds #35
+  subset construction, which can discover up to `2**N` states for an
+  intermediate N-state NFA; worst-case time and space are exponential.
+  The upstream `None`-state word-reading limits noted for #47 also apply.
+  Reuses ADR-0002 and ADR-0003; no new ADR. Git commit: pending.
+
+**Level 2 #47-#48 validation:** 134 focused tests and 1012 full-suite tests
+pass with Graphviz `dot` available, including all #1-#46 regressions and
+the mandatory mature `(True, True)` example. Strict mypy passes on
+`automata_extensions` and `tests/fa` (66 source files); editable import,
+MRO and `git diff --check` pass. #49-#62 remain TODO.

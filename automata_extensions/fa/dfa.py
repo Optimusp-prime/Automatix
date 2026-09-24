@@ -13,6 +13,7 @@ from automata_extensions.fa.dfa_mixins.isomorphism import IsomorphismMixin
 from automata_extensions.fa.dfa_mixins.minimization import MinimizationMixin
 from automata_extensions.fa.dfa_mixins.prefix import PrefixMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
+from automata_extensions.fa.dfa_mixins.quotient import DFAQuotientMixin
 from automata_extensions.fa.dfa_mixins.set_operations import DFASetOperationsMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
@@ -23,7 +24,7 @@ class ExtendedDFA(
     CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
-    LanguageOperationsMixin, ReverseMixin,
+    LanguageOperationsMixin, DFAQuotientMixin, ReverseMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""
