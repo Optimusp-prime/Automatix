@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #51 complete and verified
+Current feature: Level 2 #52 complete and verified
 
-Next planned feature: #52 - NFA -> DFA using subset construction (not started)
+Next planned feature: #53 - DFA -> regex by state elimination (not started)
 
-Current phase: Thompson regex-to-NFA construction verified
+Current phase: NFA-to-DFA conversion verified by reuse of #35
 
 ## Infrastructure
 
@@ -111,7 +111,7 @@ confirms their names and contracts.
 | 49 | Brzozowski derivatives | `Regex(expression, *, input_symbols=None).derivative(symbol) -> Regex` | `automata_extensions.regex` with private immutable AST | VERIFIED | `tests/regex/test_derivative.py` | Classical grammar only; ADR-0015 |
 | 50 | Brzozowski automaton / minimization | `brzozowski_minimize() -> ExtendedDFA` | `BrzozowskiMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_brzozowski.py` | Double reversal/determinization with private reverse-start normalization; ADR-0016 |
 | 51 | Regex -> NFA conversion using Thompson construction | `ExtendedNFA.from_regex(regex, *, input_symbols=None) -> ExtendedNFA` | `ThompsonMixin` | VERIFIED | `tests/fa/test_thompson.py` | Explicit Thompson construction over #49 AST; ADR-0015 |
-| 52 | NFA -> DFA conversion using subset construction | TBD | TBD | TODO | — | — |
+| 52 | NFA -> DFA conversion using subset construction | `determinize() -> ExtendedDFA`, `to_dfa() -> ExtendedDFA` | `DeterminizationMixin` (reuse #35) | VERIFIED | `tests/fa/test_determinization.py` | Reachable epsilon-closed subsets; `to_dfa` delegates; no second algorithm |
 | 53 | DFA -> regex by state elimination | TBD | TBD | TODO | — | — |
 | 54 | DFA -> regex by language equations / Arden | TBD | TBD | TODO | — | — |
 
@@ -2293,3 +2293,38 @@ passed and 1 environment-dependent Graphviz test skipped, including all
 #1-#50 regressions. Strict mypy passes on `automata_extensions`, `tests/fa`
 and `tests/regex` (74 source files). Editable installation, public imports,
 MRO and `git diff --check` pass. #52-#62 remain TODO.
+
+## #52 - NFA to DFA by subset construction
+
+- **Specification / reuse:** professor requirement #52 is exactly the
+  accessible subset construction already implemented and VERIFIED for #35.
+  `ExtendedNFA.determinize() -> ExtendedDFA` is the single implementation;
+  `ExtendedNFA.to_dfa() -> ExtendedDFA` delegates to it. Both have no
+  parameters and return fresh ExtendedDFA objects. No second conversion
+  algorithm or third public API was introduced, and #35 remains unchanged.
+- **Algorithm / representation:** start at the epsilon closure of the NFA
+  initial state; for each discovered frozenset subset and input symbol, take
+  all matching destinations and their epsilon closure. A subset is final
+  exactly when it intersects NFA final states. The queue visits only
+  reachable subsets. Empty destinations omit an edge, following inspected
+  automata-lib 9.2.0 `DFA.from_nfa(..., retain_names=True, minify=False)`;
+  the resulting DFA is partial when appropriate. It has no epsilon edges,
+  preserves the alphabet and recognized language, and does not mutate the
+  NFA. The #35 docstring contains the full complexity bound in terms of
+  reachable subsets, alphabet, epsilon edges and constructor validation.
+- **Mature compatibility / tests:** the existing #35 source regression
+  checks exactly `(n.determinize().accepts_input("a"),
+  n.to_dfa().accepts_input("a")) == (True, True)` on a minimal equivalent
+  fixture. Existing tests cover nondeterminism, epsilon before/after input,
+  multiple active states and final subsets, empty destinations, one-state
+  empty/epsilon languages, reachability, partial output, immutability, MRO
+  and exact ExtendedDFA type. One #52 integration regression adds
+  `ExtendedNFA.from_regex("(a|b)*a", input_symbols={"a", "b"}).to_dfa()`;
+  it verifies structural identity with `determinize()` and language
+  agreement for sampled words. No ADR is needed for reuse. Git commit:
+  pending.
+
+**#52 validation:** 31 focused #35/#51 tests pass; the full suite has 1088
+passed and 1 environment-dependent Graphviz test skipped. Strict mypy passes
+on 74 source files. Editable-install imports, MRO and `git diff --check` pass.
+#53-#62 remain TODO.

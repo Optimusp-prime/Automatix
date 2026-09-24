@@ -168,6 +168,29 @@ def test_determinization_source_compatibility_regression() -> None:
     assert n.determinize().is_equivalent(n.to_dfa())
 
 
+def test_thompson_nfa_composes_with_to_dfa() -> None:
+    """Requirement #52 reuses #35 on an NFA built by requirement #51."""
+    nfa = ExtendedNFA.from_regex("(a|b)*a", input_symbols={"a", "b"})
+    before = (nfa.states, nfa.transitions, nfa.input_symbols,
+              nfa.initial_state, nfa.final_states)
+    converted = nfa.to_dfa()
+    direct = nfa.determinize()
+    assert type(converted) is type(direct) is ExtendedDFA
+    assert converted.initial_state == nfa.epsilon_closure(nfa.initial_state)
+    assert converted.states == converted.accessible_states()
+    assert converted.states == direct.states
+    assert converted.transitions == direct.transitions
+    assert converted.final_states == direct.final_states
+    assert all(type(subset) is frozenset for subset in converted.states)
+    assert (nfa.states, nfa.transitions, nfa.input_symbols,
+            nfa.initial_state, nfa.final_states) == before
+    for length in range(4):
+        for symbols in product("ab", repeat=length):
+            word = "".join(symbols)
+            assert converted.accepts_input(word) == nfa.accepts_input(word)
+    assert converted.accepts_input("aba") is True
+
+
 def test_nfa_mro_and_conversion_scope() -> None:
     assert ExtendedNFA.determinize is DeterminizationMixin.determinize
     assert ExtendedNFA.to_dfa is DeterminizationMixin.to_dfa
