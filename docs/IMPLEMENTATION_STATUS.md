@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #31/#32 - DFA minimality and minimization (VERIFIED)
+Current feature: #33/#34/#35 - Determinism, epsilon closure and determinization (VERIFIED)
 
-Next planned feature: #33 - Determinism predicate (not started)
+Next planned feature: #36 - Reverse (not started)
 
-Current phase: accessible DFA quotient and minimality predicate verified
+Current phase: DFA/NFA determinism and NFA accessible-subset construction verified
 
 ## Infrastructure
 
@@ -87,9 +87,9 @@ confirms their names and contracts.
 | 30 | Myhill–Nerode equivalence classes | `equivalence_classes() -> list[frozenset[FAStateT]]` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Partition all states by non-distinguishability, including unreachable states. |
 | 31 | Test whether an automaton is minimal | `is_minimal() -> bool` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Accessible states and singleton equivalence classes. |
 | 32 | Minimization | `minimize(*, keep_original_names=False) -> ExtendedDFA` | `MinimizationMixin` via `ExtendedDFA` | VERIFIED | `tests/fa/test_minimization.py` | Restrict to accessible states, then quotient by equivalent states; both naming modes. |
-| 33 | Test whether an automaton is deterministic | TBD | TBD | TODO | — | — |
-| 34 | Epsilon closure of a state or set of states | TBD | TBD | TODO | — | — |
-| 35 | Determinization | TBD | TBD | TODO | — | — |
+| 33 | Test whether an automaton is deterministic | `is_deterministic() -> bool` | DeterminismMixin (DFA/NFA) | VERIFIED | tests/fa/test_determinism.py | No GNFA semantics; partial does not imply nondeterministic |
+| 34 | Epsilon closure of a state or set of states | `epsilon_closure(state)`, `epsilon_closure_of_set(states)` | EpsilonMixin (NFA) | VERIFIED | tests/fa/test_epsilon.py | FrozenSet results; epsilon-only traversal; no cache |
+| 35 | Determinization | `determinize()`, `to_dfa()` | DeterminizationMixin (NFA) | VERIFIED | tests/fa/test_determinization.py | Reachable frozenset states; omit empty destinations; ExtendedDFA result |
 | 36 | Reverse | TBD | TBD | TODO | — | — |
 | 37 | Epsilon-transition elimination | TBD | TBD | TODO | — | — |
 | 38 | Universal-language decision | TBD | TBD | TODO | — | — |
@@ -1542,4 +1542,130 @@ confirms their names and contracts.
   state set; V/M cover restrictions, quotient construction and validation.
 - **Related requirements:** #33-#62 remain TODO. No NFA determinization
   or other future algorithm was added.
+- **Git commit:** pending.
+
+## #33 - Determinism predicate
+
+- **Professor definition / mature API:** `is_deterministic() -> bool`
+  checks uniqueness of symbol targets and absence of epsilon transitions.
+  Deterministic does not mean complete: every valid DFA, including a
+  partial DFA, returns True. The supplied excerpts are the source;
+  the professor PDFs and full mature documentation were not accessed.
+- **Placement / DFA and NFA:** `fa/fa_mixins/determinism.py` contains
+  `DeterminismMixin`, attached to ExtendedDFA and ExtendedNFA. The DFA
+  branch relies on constructor guarantees. The NFA branch inspects every
+  stored symbol/destination-set entry, including inaccessible states:
+  a nonempty epsilon target set or more than one target returns False.
+  Empty target sets represent no actual edge, even under an epsilon key.
+- **GNFA policy:** the mixin is not attached to ExtendedFA or ExtendedGNFA.
+  No determinism semantics for regex labels is invented; GNFA has no new
+  `is_deterministic` API. DFA/NFA use the same public method without
+  changing existing graph conventions or prior requirements.
+- **Upstream / ADR reuse:** inspected automata-lib 9.2.0 DFA/NFA transition
+  representations and checked for name collisions (none). Placement follows
+  ADR-0002/0003 specialization rules; no new durable policy needs an ADR.
+- **Tests / source compatibility:** 13 cases in
+  `tests/fa/test_determinism.py`: complete/partial DFA, single/multiple NFA
+  targets, epsilon edges, empty rows/targets, inaccessible nondeterminism,
+  None and heterogeneous states, frozenset-valued DFA states, exact bool,
+  source/cache immutability, MRO and GNFA scope. The mature call
+  `d.is_deterministic() is True` is a named source-compatibility regression.
+- **Complexity:** DFA O(1) time; NFA O(T) time, where T includes stored
+  source rows and symbol entries; O(1) auxiliary space. No graph or cache.
+- **Validation:** all 757 tests pass, including #1-#32; strict mypy passes
+  on 49 source files. Requirements #36-#62 remain TODO.
+- **Git commit:** pending.
+
+## #34 - Epsilon closure of a state or state set
+
+- **Professor specification / French meaning:** epsilon-closure
+  (epsilon-fermeture) follows only transitions labeled `""`, with the
+  starting states included by zero-length paths. Consuming edges are ignored.
+- **Mature APIs / placement:** NFA-only `EpsilonMixin` in
+  `fa/nfa_mixins/epsilon.py` exposes
+  `epsilon_closure(state: FAStateT) -> FrozenSet[FAStateT]` and
+  `epsilon_closure_of_set(states: Iterable[FAStateT]) -> FrozenSet[FAStateT]`.
+- **Implementation:** the single-state API delegates to the set API with
+  one seed. Validate seeds while consuming the iterable once, then perform
+  an iterative multi-source epsilon traversal. Mark each state when queued
+  to terminate on cycles. Absent source rows mean no outgoing edges, as
+  allowed by upstream NFA. Empty input returns an empty frozenset.
+- **Invalid states:** an absent or unhashable seed raises upstream
+  `InvalidStateError`, following ADR-0004. Explicit None is an ordinary
+  state when present. No new sentinel or exception hierarchy is introduced.
+- **Upstream / reuse:** inspected NFA's cached `_get_lambda_closures` and
+  transition validation. The requested traversal is implemented without its
+  global cache or NetworkX dependency, and is reused by #35. No source
+  mutation or persistent state is added. ADR-0002/0003/0004 remain unchanged.
+- **Tests / source compatibility:** 21 cases in `tests/fa/test_epsilon.py`
+  cover zero-edge closure, chain, cycle, branching, ignored consuming edges,
+  multi-source union, empty input, duplicates, a single-use generator,
+  absent/unhashable seeds, None/heterogeneous states, immutable results and
+  source/cache immutability. A minimal fixture reproduces the supplied
+  `(sorted(n.epsilon_closure("p")),
+  sorted(n.epsilon_closure_of_set({"p"}))) == (["p", "r"], ["p", "r"])`
+  example; the unavailable original fixture is not claimed to be reproduced.
+- **Complexity:** O(k + |Q_e| + |E_e|) time and O(|Q_e|) space, where k is
+  the number of input items and Q_e/E_e the reached epsilon subgraph.
+  Single-state closure has k=1. Expected constant-time hashing/lookups.
+- **Validation:** all 757 tests pass; strict mypy passes on 49 source files.
+  No epsilon elimination (#37) or other future API is implemented.
+- **Git commit:** pending.
+
+## #35 - NFA determinization
+
+- **Professor contract / mature APIs:** construct only accessible subsets.
+  NFA-only `DeterminizationMixin` in `fa/nfa_mixins/determinization.py`
+  exposes `determinize() -> ExtendedDFA`; `to_dfa() -> ExtendedDFA` simply
+  delegates to it. No duplicate algorithm, minimization or state renaming.
+- **Initial / transition / final subsets:** begin with #34's epsilon
+  closure of the original initial state. For each discovered subset S and
+  alphabet symbol a, compute the union of direct a-destinations and call
+  `epsilon_closure_of_set` on that move. A subset is final iff it intersects
+  the original final states. The alphabet is preserved; epsilon is not a
+  consumed input symbol.
+- **Lazy construction:** a queue processes each discovered subset once.
+  Transition rows also identify discovered subsets. The full powerset is
+  never enumerated, and inaccessible original states cannot appear.
+  Every result state is a frozenset of original states, with None and
+  heterogeneous values retained without sorting or string conversion.
+- **Empty-subset policy / upstream inspection:** inspected and exercised
+  automata-lib 9.2.0 `DFA.from_nfa`, `_expand_dfa` and NFA's
+  `_iterate_through_symbol_path_pairs`. They omit empty destinations.
+  Follow that convention: omit the corresponding DFA edge and do not create
+  an empty-subset sink; set `allow_partial` from the actual resulting table.
+  With no accepting path the nonempty initial subset still represents a
+  valid empty-language DFA. An empty alphabet yields a complete DFA by
+  vacuity. A test compares the structure with upstream using
+  `retain_names=True, minify=False`.
+- **Why not delegate conversion:** the task explicitly requests visible
+  pedagogical subset construction reusing the new #34 operations. Upstream
+  uses cached closures and defaults to renaming/minimizing; those defaults
+  are not the supplied mature contract. No upstream source is changed.
+- **Result / immutability / composition:** a fresh ExtendedDFA retains
+  `is_deterministic`, `complete`, `trim`, `minimize` and equivalence APIs.
+  No source states, transitions, final states or caches are modified.
+  The known upstream NFA word-reading limitation for None (ADR-0007) is
+  not patched; structural tests cover None and the produced DFA is readable.
+- **Tests / source compatibility:** 17 cases in
+  `tests/fa/test_determinization.py` cover deterministic and branching NFAs,
+  epsilon before/after consumption, epsilon cycles, empty-word acceptance,
+  multiple finals, exact reachable subsets/edges, no implicit minimization,
+  empty alphabet/language, partial output, immutability, None/heterogeneous
+  states, types, MRO and composition. All words of lengths 0-4 over {a,b}
+  are compared against the branching epsilon NFA. The supplied mature
+  `(n.determinize().accepts_input("a"), n.to_dfa().accepts_input("a"))`
+  returns `(True, True)` on a minimal compatible fixture; both outputs
+  are also checked language-equivalent.
+- **Complexity:** let n=|Q|, s=|Sigma|, R be discovered subsets, M the
+  maximum total destinations inspected for one symbol over Q, e all epsilon
+  edges, and V constructor freezing/validation. Time is
+  O(n + e + R*s*(n + M + e) + V). Peak space is
+  O(R*n*(1+s) + n + V_space), including freshly allocated target frozensets
+  on transitions; equal subsets need not share object identity. R can reach
+  2^n, so worst-case determinization is exponential, not polynomial in n.
+- **ADR / validation:** reuses ADR-0002/0003 specialization and immutable
+  transformation principles; no accepted ADR is modified or new one needed.
+  All 757 tests pass, including the #22 `complement(minify=True)` regression;
+  strict mypy passes on 49 source files. #36-#62 remain TODO.
 - **Git commit:** pending.

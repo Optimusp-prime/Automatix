@@ -1,0 +1,1 @@
+"""NFA-specific extension domains."""

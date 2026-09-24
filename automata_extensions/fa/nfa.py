@@ -6,9 +6,14 @@ from automata.fa.fa import FAStateT
 from automata.fa.nfa import NFA
 
 from automata_extensions.fa.base import ExtendedFA
+from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
+from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
+from automata_extensions.fa.nfa_mixins.epsilon import EpsilonMixin
 
 
-class ExtendedNFA(ExtendedFA, NFA):
+class ExtendedNFA(
+    DeterminismMixin, EpsilonMixin, DeterminizationMixin, ExtendedFA, NFA
+):
     """Associe les mixins communs au comportement de NFA."""
 
     def _restrict_to_states(self, kept: FrozenSet[FAStateT]) -> Self:
