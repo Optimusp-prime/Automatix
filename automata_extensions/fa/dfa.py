@@ -15,13 +15,15 @@ from automata_extensions.fa.dfa_mixins.prefix import PrefixMixin
 from automata_extensions.fa.dfa_mixins.product import ProductMixin
 from automata_extensions.fa.dfa_mixins.set_operations import DFASetOperationsMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
+from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 
 
 class ExtendedDFA(
     CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     InclusionMixin,
-    IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin, ReverseMixin,
+    IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
+    LanguageOperationsMixin, ReverseMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""

@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #42-#44 complete and verified
+Current feature: Level 2 #45-#46 complete and verified
 
-Next planned feature: #45 - Concatenation (not started)
+Next planned feature: #47 - Left quotient (not started)
 
-Current phase: DFA/NFA language set operations verified
+Current phase: DFA/NFA concatenation and Kleene star verified
 
 ## Infrastructure
 
@@ -104,8 +104,8 @@ confirms their names and contracts.
 | 42 | Union | `union(other, *, retain_names=False, minify=False)` (DFA); `union(other)` (NFA) | `DFASetOperationsMixin`, `NFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | DFA reuses lazy product with OR finals; NFA delegates to upstream; Extended results |
 | 43 | Intersection | `intersection(other, *, retain_names=False, minify=False)` (DFA); `intersection(other)` (NFA) | `DFASetOperationsMixin`, `NFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | DFA reuses lazy product with AND finals; NFA delegates to upstream; Extended results |
 | 44 | Difference | `difference(other, *, retain_names=False, minify=False)` (DFA) | `DFASetOperationsMixin` | VERIFIED | `tests/fa/test_set_operations.py` | Intersection with right complement; DFA-only; Extended result |
-| 45 | Concatenation | TBD | TBD | TODO | — | — |
-| 46 | Kleene star | TBD | TBD | TODO | — | — |
+| 45 | Concatenation | `concatenation(other: DFA \| NFA) -> ExtendedNFA` | `LanguageOperationsMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_rational_operations.py` | DFA converts via ExtendedNFA.from_dfa; delegates epsilon construction to NFA.concatenate |
+| 46 | Kleene star | `kleene_star() -> ExtendedNFA` | `LanguageOperationsMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_rational_operations.py` | DFA converts via ExtendedNFA.from_dfa; delegates new initial/final epsilon construction to NFA.kleene_star |
 | 47 | Left quotient | TBD | TBD | TODO | — | — |
 | 48 | Right quotient | TBD | TBD | TODO | — | — |
 | 49 | Brzozowski derivatives | TBD | TBD | TODO | — | — |
@@ -2013,3 +2013,66 @@ available, the full suite has 853 passed, including all #1-#41 regressions
 and the four executable mature examples. Strict mypy passes on
 `automata_extensions` and `tests/fa` (60 source files); public imports/MRO
 and `git diff --check` pass. #45-#62 remain TODO.
+
+## #45 - Concatenation
+
+- **Professor construction / meaning:** `L(result) = L(self) · L(other)`;
+  epsilon transitions connect the left accepting states to the right
+  initial state. The source PDFs were not accessed; the attached request
+  supplies the professor specification.
+- **Mature compatibility / public API:** `concatenation(other: DFA | NFA)`
+  in `LanguageOperationsMixin` is available on ExtendedDFA and ExtendedNFA
+  and returns a fresh ExtendedNFA. The existing mature DFA fixture from
+  `tests/fa/test_state_elimination.py` reproduces
+  `d.concatenation(d).accepts_input("aaaaaa") is True`. An equivalent
+  explicit ExtendedNFA construction also reproduces upstream's
+  `"a"` concatenated with `"b"` accepting `"ab"`.
+- **Delegation / collisions / alphabets:** a DFA operand is converted once
+  with `ExtendedNFA.from_dfa`; an NFA operand is used directly. Then the
+  wrapper calls automata-lib 9.2.0 `NFA.concatenate` on an ExtendedNFA.
+  Upstream maps the two state sets to disjoint integer identifiers, copies
+  their transitions and adds the required epsilon edges. It takes the
+  **union** of input alphabets, including when they differ. No DFA product,
+  determinization, minimization or source mutation is introduced. The
+  inherited upstream `concatenate()` name remains unchanged.
+- **Tests / complexity / limits:** tests cover DFA and NFA operands,
+  prefixes/suffixes, epsilon-language and empty-language operands,
+  pre-existing epsilon edges, colliding names, different alphabets,
+  immutability, return type and chained determinization/minimization.
+  O(|Q1| + |Q2| + T1 + T2 + V) time and corresponding space include optional
+  DFA conversion, transition copying and upstream validation V. T1/T2
+  count stored transition entries and destinations. GNFA has no direct
+  word-language construction here; upstream NFA reading of a state named
+  None retains the limitation recorded in ADR-0007. Reuses ADR-0002 and
+  ADR-0003; no new ADR. Git commit: pending.
+
+## #46 - Kleene star
+
+- **Professor construction / meaning:** `L(result) = L(self)*`, including
+  epsilon. Add a new initial/final state, an epsilon entry into the old
+  initial state, and epsilon repetition edges from former accepting states.
+  The source PDFs were not accessed.
+- **Mature compatibility / public API:** `kleene_star() -> ExtendedNFA`
+  in the same `LanguageOperationsMixin` works on ExtendedDFA and ExtendedNFA.
+  The existing mature DFA fixture reproduces
+  `d.kleene_star().accepts_input("") is True`. An explicit ExtendedNFA
+  for `"ab"` reproduces upstream's star example accepting `"abab"`.
+- **Delegation / state safety:** convert DFA with `ExtendedNFA.from_dfa`
+  when needed, then call automata-lib 9.2.0 `NFA.kleene_star` on the
+  ExtendedNFA. Upstream selects the first unused nonnegative integer as
+  the new state, preserving all old states and their epsilon edges, and
+  preserves the input alphabet. No source mutation, determinization or
+  minimization occurs.
+- **Tests / complexity / limits:** tests cover zero, one and multiple
+  repetitions; malformed words; stars of empty and epsilon languages;
+  existing epsilon edges; collision-free new state; immutability; exact
+  ExtendedNFA type; and composition with epsilon elimination. Expected
+  O(|Q| + T + |F| + V) time and O(|Q| + T + |F| + M) space include optional
+  DFA conversion and upstream construction/validation V/M. GNFA is not
+  exposed. Reuses ADR-0002 and ADR-0003; no new ADR. Git commit: pending.
+
+**Level 2 #45-#46 validation:** 25 focused tests and 878 full-suite tests
+pass with Graphviz `dot` available, including every previously verified
+#1-#44 test and all four supplied source examples. Strict mypy passes on
+`automata_extensions` and `tests/fa` (62 source files); public imports,
+MRO and `git diff --check` pass. #47-#62 remain TODO.
