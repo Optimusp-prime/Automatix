@@ -1897,8 +1897,14 @@ confirms their names and contracts.
   `len(d.tikz()) > 0`, `len(d.latex()) > 0`, exact `graph().source == dot()`,
   format-specific `Source.pipe` delegation, returned bytes, no output files,
   missing-binary error, shared DFA/NFA/GNFA behavior, labels/escaping,
-  immutability, imports and MRO. One real SVG/PDF/PNG integration test is
-  skipped locally because `dot` is absent; it runs when the binary exists.
+  immutability, imports and MRO. The real SVG/PDF/PNG integration test now
+  runs with Graphviz 14.1.2 (`dot.exe`) and Python graphviz 0.21 in
+  `automate-env-clean`; pytest: 827 passed. Manual ExtendedDFA checks
+  confirmed valid SVG and PNG bytes, PDF bytes beginning `%PDF-1.7`, and
+  successful opening of SVG and PDF files written from those bytes.
+  MiKTeX/pdflatex and PGF/TikZ were also verified by compiling and viewing
+  a TikZ test PDF. MiKTeX is needed to compile the generated text, not to
+  call `tikz()` or `latex()`.
 - **Typing / complexity / ADR:** graphviz 0.21 lacks a `py.typed` marker,
   so a narrow local stub in `typings/graphviz` types exactly the Source API
   used; strict mypy passes on 56 source files. DOT/TikZ generation has
