@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #50 complete and verified
+Current feature: Level 2 #51 complete and verified
 
-Next planned feature: #51 - Regex -> NFA using Thompson construction (not started)
+Next planned feature: #52 - NFA -> DFA using subset construction (not started)
 
-Current phase: Brzozowski automaton minimization verified
+Current phase: Thompson regex-to-NFA construction verified
 
 ## Infrastructure
 
@@ -110,7 +110,7 @@ confirms their names and contracts.
 | 48 | Right quotient | `right_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin`; shared private helper | VERIFIED | `tests/fa/test_word_quotient.py` | Reverse, left quotient by reversed word, reverse; DFA determinizes result |
 | 49 | Brzozowski derivatives | `Regex(expression, *, input_symbols=None).derivative(symbol) -> Regex` | `automata_extensions.regex` with private immutable AST | VERIFIED | `tests/regex/test_derivative.py` | Classical grammar only; ADR-0015 |
 | 50 | Brzozowski automaton / minimization | `brzozowski_minimize() -> ExtendedDFA` | `BrzozowskiMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_brzozowski.py` | Double reversal/determinization with private reverse-start normalization; ADR-0016 |
-| 51 | Regex -> NFA conversion using Thompson construction | TBD | TBD | TODO | — | — |
+| 51 | Regex -> NFA conversion using Thompson construction | `ExtendedNFA.from_regex(regex, *, input_symbols=None) -> ExtendedNFA` | `ThompsonMixin` | VERIFIED | `tests/fa/test_thompson.py` | Explicit Thompson construction over #49 AST; ADR-0015 |
 | 52 | NFA -> DFA conversion using subset construction | TBD | TBD | TODO | — | — |
 | 53 | DFA -> regex by state elimination | TBD | TBD | TODO | — | — |
 | 54 | DFA -> regex by language equations / Arden | TBD | TBD | TODO | — | — |
@@ -2254,3 +2254,42 @@ and 1 existing environment-dependent Graphviz test skipped (1075 collected),
 including all #1-#49 regressions. Strict mypy passes on
 `automata_extensions`, `tests/fa` and `tests/regex` (72 source files).
 Public imports, MRO and `git diff --check` pass. #51-#62 remain TODO.
+
+## #51 - Regex to NFA by Thompson construction
+
+- **Specification / API:** professor requirement #51 explicitly requests
+  Thompson construction. `ExtendedNFA.from_regex(regex: str, *,
+  input_symbols: AbstractSet[str] | None = None) -> ExtendedNFA` overrides
+  upstream only on the extended NFA. It returns a fresh, validated automaton
+  without changing the expression or any existing automaton. The provided
+  mature example `ExtendedNFA.from_regex("(a|b)*a",
+  input_symbols={"a", "b"}).accepts_input("aba") is True` is a regression test.
+- **Parser / alphabet:** reuse #49's private immutable AST and limited grammar:
+  literals, `|`, concatenation, `*`, grouping, and epsilon as `""` or `()`.
+  Unsupported or malformed syntax raises `InvalidRegexError`. An explicit
+  single-character alphabet is preserved and must contain each literal;
+  otherwise it is inferred from literals. Epsilon labels `""` are not alphabet
+  symbols. The internal empty-language AST node has a disconnected start and
+  final fragment; it has no public regex token.
+- **Construction:** a per-call private builder assigns disjoint integer states
+  and composes entry/exit fragments with textbook literal, epsilon, empty,
+  union, concatenation and star rules. Union uses new branch/join states;
+  concatenation links the left exit to the right entry; star adds the skip,
+  entry, repeat and exit epsilon edges. The shared temporary graph is passed
+  to the automata-lib NFA constructor. Production never calls upstream
+  `NFA.from_regex`; upstream is used only as an independent language oracle
+  in tests. No change to #49's parser, AST or derivative was necessary.
+- **Tests / complexity / decisions:** `tests/fa/test_thompson.py` checks
+  structural fragments, the mature example, alphabet and invalid syntax,
+  epsilon, repeated calls, ExtendedNFA composition, and language agreement
+  with upstream on representative words. For n normalized AST nodes, fragment
+  construction takes O(n) time and space plus constructor validation V;
+  #49 parsing/normalization may take more than linear time through subtree
+  comparison. Deep inputs remain subject to Python recursion limits. Reuse
+  ADR-0015; no new ADR. Git commit: pending.
+
+**#51 validation:** 62 focused #51/#49 tests pass. The full suite has 1087
+passed and 1 environment-dependent Graphviz test skipped, including all
+#1-#50 regressions. Strict mypy passes on `automata_extensions`, `tests/fa`
+and `tests/regex` (74 source files). Editable installation, public imports,
+MRO and `git diff --check` pass. #52-#62 remain TODO.
