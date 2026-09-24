@@ -124,7 +124,7 @@ confirms their names and contracts.
 | 57 | Arden lemma | `solve_arden(coefficient: Regex, constant: Regex) -> Regex` | `automata_extensions.equations` | VERIFIED | `tests/equations/test_arden.py` | Unique `X = A X ∪ B` solution with non-nullable A; ADR-0018 |
 | 58 | Systems of rational-language equations | `SystemOfEquations(...).solve()`; `ExtendedDFA/ExtendedNFA.to_equation_system()` | `automata_extensions.equations`; DFA/NFA equation mixins | VERIFIED | `tests/equations/test_system.py` | All-state Regex AST systems; epsilon NFA normalized via #37; ADR-0019 |
 | 59 | Myhill–Nerode classes / language quotients | `ExtendedDFA.myhill_nerode_quotients() -> tuple[ExtendedDFA, ...]` | `MyhillNerodeMixin` (DFA only) | VERIFIED | `tests/fa/test_myhill_nerode.py` | Reachable distinct left quotients; partial-DFA empty quotient; ADR-0020 |
-| 60 | Residual automaton | TBD | TBD | TODO | — | — |
+| 60 | Residual automaton | `ExtendedDFA.residual_automaton() -> ExtendedDFA` | `ResidualMixin` (DFA only) | VERIFIED | `tests/fa/test_residual.py` | Complete DFA assembled from #59 quotients; canonical q-index names |
 | 61 | Automaton morphisms | TBD | TBD | TODO | — | — |
 | 62 | Syntactic monoid | TBD | TBD | TODO | — | — |
 
@@ -2688,3 +2688,48 @@ source files) pass. Editable installation and public import/MRO checks pass.
 the full suite (1192 passed, 1 skipped) and strict mypy (60 selected source
 and test files) pass. Editable installation, public imports/MRO and
 `git diff --check` pass. #60-#62 remain TODO.
+
+## #60 - Residual automaton
+
+- **Professor requirement / mature compatibility:** Construct an automaton
+  from the distinct left quotients of a language. The mature public API is
+  `ExtendedDFA.residual_automaton() -> ExtendedDFA`. On its executed
+  three-state fixture, `sorted(map(str, result.states))` is exactly
+  `['q0', 'q1', 'q2']`.
+- **Construction:** Reuse #59's deterministic quotient tuple without
+  recomputing its discovery logic. Quotient at index i becomes state `qi`;
+  `q0` is initial. `qi` is final iff quotient i accepts epsilon. For every
+  state and input symbol, #47 computes the next left quotient and #25
+  identifies its unique language-equivalent member of #59's tuple. A
+  missing or non-unique match is an internal correctness error, never a
+  reason to invent another state. Source and intermediate quotients remain
+  unchanged.
+- **Partial/edge semantics:** The empty quotient supplied by #59 becomes a
+  rejecting self-looping residual if needed. The result is complete even
+  for a partial source. An explicit reachable dead state does not duplicate
+  it; inaccessible source states and equivalent reachable states add no
+  residuals. Empty alphabet, empty and universal languages are supported.
+  The fresh ExtendedDFA is language-equivalent to the source and has one
+  state per distinct quotient.
+- **Complexity:** Let Q be source states, Σ the alphabet, k the #59 quotient
+  count, T the source transition-scan cost, V/M upstream constructor and
+  validation time/memory, and R ≤ (|Q|+1)² a reachable product-pair bound.
+  Denote #59's documented time/space by C59/S59. A derived quotient costs
+  C47 = O(|Q| + T + V), and one language comparison costs
+  Ceq = O((2|Q| + R)|Σ| + V). The expected total time is
+  O(C59 + k|Σ|(C47 + k·Ceq) + V); peak space is
+  O(S59 + |Q| + T + M + (2|Q| + R)|Σ| + k|Σ|). This includes every
+  quotient reconstruction, semantic comparison and result validation;
+  transition assembly alone is not the total cost.
+- **Tests / ADR:** `tests/fa/test_residual.py` covers exact mature names,
+  correspondence of each `qi` to its quotient, the complete three-state
+  residual for partial `{a}`, empty sink, deduplication, inaccessible states,
+  finality, one-state extremes, empty alphabet, names through `q10`,
+  immutability, language equivalence and composability. ADR-0020 already
+  covers quotient representation; no new durable decision was needed.
+  Git commit: pending.
+
+**#60 validation:** 11 focused tests; 177 targeted #30/#32/#47/#59/#60
+tests; the full suite (1203 passed, 1 skipped) and strict mypy (62 selected
+source and test files) pass. Editable installation, public imports/MRO and
+`git diff --check` pass. #61-#62 remain TODO.
