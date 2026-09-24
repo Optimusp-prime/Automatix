@@ -10,6 +10,7 @@ from automata_extensions.fa.fa_mixins.brzozowski import BrzozowskiMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
+from automata_extensions.fa.fa_mixins.morphism import MorphismMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
 from automata_extensions.fa.nfa_mixins.elimination import EliminationMixin
@@ -24,7 +25,7 @@ from automata_extensions.fa.nfa_mixins.thompson import ThompsonMixin
 class ExtendedNFA(
     NFAEquationSystemMixin, ThompsonMixin, NFAGrammarMixin, GrammarMixin, BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
     DeterminizationMixin,
-    EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, ExtendedFA, NFA
+    EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, MorphismMixin, ExtendedFA, NFA
 ):
     """Associe les mixins communs au comportement de NFA."""
 

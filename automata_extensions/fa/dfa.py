@@ -22,6 +22,7 @@ from automata_extensions.fa.dfa_mixins.set_operations import DFASetOperationsMix
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
+from automata_extensions.fa.fa_mixins.morphism import MorphismMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.fa_mixins.regex import RegexMixin
 from automata_extensions.fa.fa_mixins.regex_arden import ArdenMixin
@@ -31,7 +32,7 @@ class ExtendedDFA(
     DFAEquationSystemMixin, ArdenMixin, RegexMixin, BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     GrammarMixin, InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, MyhillNerodeMixin, DeterminismMixin,
-    LanguageOperationsMixin, DFAQuotientMixin, ResidualMixin, ReverseMixin,
+    LanguageOperationsMixin, DFAQuotientMixin, ResidualMixin, MorphismMixin, ReverseMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""

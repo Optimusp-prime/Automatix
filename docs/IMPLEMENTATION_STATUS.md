@@ -125,7 +125,7 @@ confirms their names and contracts.
 | 58 | Systems of rational-language equations | `SystemOfEquations(...).solve()`; `ExtendedDFA/ExtendedNFA.to_equation_system()` | `automata_extensions.equations`; DFA/NFA equation mixins | VERIFIED | `tests/equations/test_system.py` | All-state Regex AST systems; epsilon NFA normalized via #37; ADR-0019 |
 | 59 | Myhill–Nerode classes / language quotients | `ExtendedDFA.myhill_nerode_quotients() -> tuple[ExtendedDFA, ...]` | `MyhillNerodeMixin` (DFA only) | VERIFIED | `tests/fa/test_myhill_nerode.py` | Reachable distinct left quotients; partial-DFA empty quotient; ADR-0020 |
 | 60 | Residual automaton | `ExtendedDFA.residual_automaton() -> ExtendedDFA` | `ResidualMixin` (DFA only) | VERIFIED | `tests/fa/test_residual.py` | Complete DFA assembled from #59 quotients; canonical q-index names |
-| 61 | Automaton morphisms | TBD | TBD | TODO | — | — |
+| 61 | Automaton morphisms | `is_morphism_to(other, state_map) -> bool`; `project(symbol_map) -> ExtendedNFA`; `quotient_by(state_map) -> ExtendedNFA` | `MorphismMixin` (DFA/NFA) | VERIFIED | `tests/fa/test_morphism.py` | Forward edge/finality preservation, epsilon projection and non-congruent fusion; ADR-0021 |
 | 62 | Syntactic monoid | TBD | TBD | TODO | — | — |
 
 # Feature notes
@@ -2733,3 +2733,55 @@ and test files) pass. Editable installation, public imports/MRO and
 tests; the full suite (1203 passed, 1 skipped) and strict mypy (62 selected
 source and test files) pass. Editable installation, public imports/MRO and
 `git diff --check` pass. #61-#62 remain TODO.
+
+## #61 - Automaton morphisms
+
+- **Professor requirement / mature compatibility:** Preserve transitions
+  under state merging or input-symbol projection. The supplied mature
+  `MorphismMixin` exposes `is_morphism_to`, `project`, and `quotient_by`.
+  Its three executable examples are reproduced exactly: identity morphism
+  is True; projecting `a -> x, b -> None` accepts `xxx`; merging states
+  `0,1 -> 0` yields state names `['0', '2']`. ADR-0021 records the
+  additional Automatix semantics absent from the mature excerpts.
+- **Placement / scope:** One shared `MorphismMixin` implementation is
+  included in `ExtendedDFA` and `ExtendedNFA` only. `ExtendedGNFA` has no
+  #61 API because its regex labels require different semantics. None of
+  the three methods mutates its source, target, or caller mapping.
+- **State morphism:** `is_morphism_to(other, state_map) -> bool` supports
+  DFA/NFA source and target combinations. It requires an exact source-state
+  domain, existing target-state images, identical alphabets, initial-state
+  preservation, forward finality preservation and every mapped source edge
+  (including epsilon). Extra target edges and images of nonfinal states in
+  final states are allowed. Missing source DFA transitions impose no target
+  condition; no implicit sink is added. Invalid proposed maps return False.
+  Expected time is O(|Q_A| + |Q_B| + M + |Σ_A| + |Σ_B| + T_A + T_B), with
+  O(M + |E_B|) auxiliary space; T scans transition entries and E_B counts
+  individual target edges.
+- **Symbol projection:** `project(symbol_map) -> ExtendedNFA` requires the
+  mapping domain to equal the source alphabet. Images are one-character
+  symbols or None, which becomes NFA epsilon (`''`). Existing NFA epsilon
+  edges remain unchanged. Collisions union all destinations. States,
+  initial state and finals are preserved; the result alphabet is exactly
+  the set of non-None images. Malformed domains or images raise ValueError.
+  Expected time is O(|Q| + |Σ| + M + T + V), and space is
+  O(|Q| + |Σ| + |E| + W), including upstream construction/validation V/W.
+- **State quotient:** `quotient_by(state_map) -> ExtendedNFA` requires an
+  exact source-state domain and hashable image labels. States equal the
+  image, the initial state maps forward, and an image is final iff some
+  source final maps to it. Every edge maps forward, with destination sets
+  unioned on collision. Non-congruent DFA merges are accepted without
+  dropping a transition. The quotient map is a valid morphism to the
+  result. Malformed maps raise ValueError. Expected time is
+  O(|Q| + M + T + V), and space is O(|Q| + |E| + W).
+- **Tests / ADR:** `tests/fa/test_morphism.py` covers the exact mature
+  examples, all DFA/NFA morphism combinations, forward-only finality,
+  partial transitions, extra target edges, epsilon preservation, projection
+  erasure/collision/alphabet, non-congruent state fusion, validation,
+  immutability, composability and GNFA exclusion. No automatic completion,
+  determinization or minimization is introduced. ADR-0021 documents the
+  three related Automatix policies. Git commit: pending.
+
+**#61 validation:** 29 focused tests; 111 targeted #25/#32/NFA/#61 tests;
+the full suite (1232 passed, 1 skipped) and strict mypy (60 selected source
+and test files) pass. Editable installation, public imports/MRO and
+`git diff --check` pass. #62 remains TODO.
