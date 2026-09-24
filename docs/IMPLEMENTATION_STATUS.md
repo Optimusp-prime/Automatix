@@ -121,7 +121,7 @@ confirms their names and contracts.
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
 | 55 | Automaton <-> regular grammar conversion | `to_grammar()` (DFA/NFA); `ExtendedNFA.from_grammar(grammar)`, `from_grammar_string(text)`; `Grammar` | `GrammarMixin`, `NFAGrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_grammar.py` | Right-linear, immutable, language-preserving conversion; approved mature divergence; ADR-0017 |
 | 56 | Derivation trees | `Grammar.derivation_tree(word)`; `ExtendedDFA/ExtendedNFA.derivation_tree(word)`; `DerivationStep.word()/sequence()` | `GrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_derivation.py` | Immutable derivation chain; deterministic BFS; exact mature sequence |
-| 57 | Arden lemma | TBD | TBD | TODO | — | — |
+| 57 | Arden lemma | `solve_arden(coefficient: Regex, constant: Regex) -> Regex` | `automata_extensions.equations` | VERIFIED | `tests/equations/test_arden.py` | Unique `X = A X ∪ B` solution with non-nullable A; ADR-0018 |
 | 58 | Systems of rational-language equations | TBD | TBD | TODO | — | — |
 | 59 | Myhill–Nerode classes / language quotients | TBD | TBD | TODO | — | — |
 | 60 | Residual automaton | TBD | TBD | TODO | — | — |
@@ -2558,3 +2558,38 @@ and `git diff --check` are verified. At #55 verification,
 1 environment-dependent Graphviz skip) pass. Strict mypy passes on 85
 source files. Public import/MRO, editable install and `git diff --check`
 pass. #57-#62 remain TODO.
+
+## #57 - Arden's lemma for one rational-language equation
+
+- **Specification / API:** Solve only `X = A X ∪ B` with the unique solution
+  `A* B` when epsilon is absent from `L(A)`. Automatix chooses
+  `from automata_extensions.equations import solve_arden` and
+  `solve_arden(coefficient: Regex, constant: Regex) -> Regex`; no standalone
+  name was established by the supplied mature documentation. Nullable
+  coefficients raise `ValueError` with an explicit epsilon precondition.
+- **Representation / edge cases:** The solver uses #49's private immutable
+  AST, checks `nullable(A)`, then builds `concatenate(star(A), B)` using
+  existing normalization. A private `Regex._from_ast` makes a fresh value.
+  An internally empty coefficient gives `B`; an internally empty constant
+  gives the empty language. The result alphabet is the union of both
+  operand alphabets, including explicitly declared unused symbols. No
+  empty-language parser token, dual equation form, or string-based solver
+  was added. Operands are unchanged.
+- **Separation / complexity:** #54's `ExtendedDFA.to_regex_arden()` retains
+  its exact mature string output and is not refactored. Let |A| be the
+  unfolded AST size visited by nullability and ΣA/ΣB the alphabets. Solving
+  takes O(|A| + |ΣA| + |ΣB|) time and
+  O(depth(A) + |ΣA ∪ ΣB|) auxiliary space; later rendering costs at least
+  its output length and may copy intermediate strings. Recursion follows
+  AST depth.
+- **Tests / ADR:** `tests/equations/test_arden.py` covers the classical
+  `aX ∪ b` equation (`a*b`), independent Thompson NFA language checks,
+  epsilon constant, multi-symbol and union coefficients, empty operands,
+  nullable rejection, alphabet metadata, fresh immutable results and
+  determinism. ADR-0018 records the standalone API decision. Git commit:
+  pending.
+
+**#57 validation:** 13 focused tests; 86 targeted #49/#51/#54/#57 tests;
+the full suite (1158 passed, 1 Graphviz skip) and strict mypy (88 source
+files) pass. Editable installation, public import and `git diff --check`
+pass. #58-#62 remain TODO.

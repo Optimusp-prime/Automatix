@@ -126,6 +126,14 @@ class Regex:
     _root: _ast.Node
     _symbols: frozenset[str]
 
+    @classmethod
+    def _from_ast(cls, root: _ast.Node, symbols: AbstractSet[str]) -> Regex:
+        """Construct a fresh immutable value from a trusted private AST."""
+        result = object.__new__(cls)
+        object.__setattr__(result, "_root", root)
+        object.__setattr__(result, "_symbols", frozenset(symbols))
+        return result
+
     def __init__(
         self,
         expression: str,
