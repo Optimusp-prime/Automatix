@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #53 complete and verified
+Current feature: Level 2 #54 complete and verified
 
-Next planned feature: #54 - DFA -> regex by language equations / Arden (not started)
+Next planned feature: #55 - Automaton <-> regular grammar conversion (not started)
 
-Current phase: DFA-to-regex state elimination verified
+Current phase: DFA-to-regex language-equation conversion verified
 
 ## Infrastructure
 
@@ -112,8 +112,8 @@ confirms their names and contracts.
 | 50 | Brzozowski automaton / minimization | `brzozowski_minimize() -> ExtendedDFA` | `BrzozowskiMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_brzozowski.py` | Double reversal/determinization with private reverse-start normalization; ADR-0016 |
 | 51 | Regex -> NFA conversion using Thompson construction | `ExtendedNFA.from_regex(regex, *, input_symbols=None) -> ExtendedNFA` | `ThompsonMixin` | VERIFIED | `tests/fa/test_thompson.py` | Explicit Thompson construction over #49 AST; ADR-0015 |
 | 52 | NFA -> DFA conversion using subset construction | `determinize() -> ExtendedDFA`, `to_dfa() -> ExtendedDFA` | `DeterminizationMixin` (reuse #35) | VERIFIED | `tests/fa/test_determinization.py` | Reachable epsilon-closed subsets; `to_dfa` delegates; no second algorithm |
-| 53 | DFA -> regex by state elimination | `ExtendedDFA.to_regex() -> str | None` | `RegexMixin` (DFA only) | VERIFIED | `tests/fa/test_dfa_to_regex.py` | Lexicographic state elimination; empty language follows #39 |
-| 54 | DFA -> regex by language equations / Arden | TBD | TBD | TODO | — | — |
+| 53 | DFA -> regex by state elimination | `ExtendedDFA.to_regex() -> str &#124; None` | `RegexMixin` (DFA only) | VERIFIED | `tests/fa/test_dfa_to_regex.py` | Lexicographic state elimination; empty language follows #39 |
+| 54 | DFA -> regex by language equations / Arden | `ExtendedDFA.to_regex_arden() -> str &#124; None` | `ArdenMixin` (DFA only) | VERIFIED | `tests/fa/test_dfa_to_regex_arden.py` | Language equations and Arden; no state elimination |
 
 ## Level 3
 
@@ -2373,3 +2373,54 @@ has 1099 passed and 1 environment-dependent Graphviz test skipped, including
 all #1-#52 regressions. Strict mypy passes on `automata_extensions`,
 `tests/fa` and `tests/regex` (76 source files). Editable-install imports,
 MRO and `git diff --check` pass. #54-#62 remain TODO.
+
+## #54 - DFA to regex by language equations and Arden's lemma
+
+- **Professor requirement / API:** construct the language equation for each
+  relevant DFA state and solve it with Arden's lemma, independently of the
+  state-elimination conversion #53. The DFA-only `ArdenMixin` adds
+  `ExtendedDFA.to_regex_arden() -> str | None`. A variable `X_q` denotes the
+  language accepted starting from state `q`; each `q --a--> r` contributes
+  `a X_r`, and a final state contributes epsilon. The method returns the
+  solution for the original initial state without mutating the DFA.
+- **Order / algebra:** only states accessible from the initial state enter
+  the system. They are sorted by the same lexical/state-type tie-break rule
+  as #53. In forward order, isolate each self coefficient `A`, apply
+  `X = A X | B -> A* B`, and substitute the solved variable into later
+  equations. Every `A` is epsilon-free: every coefficient originates in a
+  consuming DFA transition, and substitution retains at least one such
+  transition. In reverse order, substitute later solutions into the saved
+  factored rows. A route-first union retains the mature equation trace.
+  Missing transitions contribute no term; no sink or completion is added.
+- **Private representation / relation to #53:** use a coefficient matrix,
+  constants and saved factored rows of private regex-label strings. Reuse
+  #53's small union, concatenation, star and deterministic state-order
+  helpers; their signature was made independent of a GNFA instance without
+  changing #53's exact output. #49's AST normalizer is not used because it
+  would erase the required verbose factorization. Production never calls
+  `to_regex()`, `GNFA.to_regex()` or a state-elimination solver. No public
+  equation-system or optimum-variant API is introduced.
+- **Observable contract:** the mature DFA fixture yields exactly
+  `b*(ab*a((ab*ab*a|b))*ab*|())`; #53 yields the distinct but equivalent
+  `(b*|b*ab*a((b|ab*ab*a))*ab*)`. Empty language returns `None`, as agreed
+  for #53; standalone epsilon returns `""`, and epsilon within a union is
+  `()`. The string is not guaranteed minimal. As in #53, `None` cannot be
+  passed to #51 because that grammar has no empty-language token.
+- **Tests / complexity / decisions:** `tests/fa/test_dfa_to_regex_arden.py`
+  covers the exact mature string, independent NFA language checking,
+  empty/epsilon language, finite chains and direction, partial transitions,
+  self and mutual recursion, multiple finals and outgoing edges, unreachable
+  states, heterogeneous names, repeated calls, immutability and DFA-only
+  MRO. A separate read-only enumeration checked 324 two-state partial DFA
+  and finality combinations against representative words via #51. For m
+  accessible states and T transitions, system construction takes
+  O(m**2 + T), forward substitution O(m**3) coefficient updates; regex
+  string lengths and total copying may grow exponentially. No new ADR:
+  the private solver makes no durable public architectural decision beyond
+  the existing DFA-specific mixin pattern. Git commit: pending.
+
+**#54 validation:** 93 focused #54/#53/#39/#49/#51 tests pass. The full
+suite has 1110 passed and 1 environment-dependent Graphviz test skipped,
+including all #1-#53 regressions. Strict mypy passes on 78 source files.
+Editable-install imports, DFA-only MRO and `git diff --check` pass.
+#55-#62 remain TODO.

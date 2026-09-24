@@ -3,25 +3,28 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from automata.fa.dfa import DFA
 from automata.fa.fa import FAStateT
-
-if TYPE_CHECKING:
-    from automata_extensions.fa.gnfa import ExtendedGNFA
+from automata.fa.gnfa import GNFA
 
 
-def _group_union(label: str, gnfa: ExtendedGNFA) -> str:
+def _state_order_key(state: FAStateT) -> tuple[str, str, str, str]:
+    """Order ordinary labels lexically, breaking heterogeneous ties."""
+    return (str(state), type(state).__module__, type(state).__qualname__, repr(state))
+
+
+def _group_union(label: str) -> str:
     """Parenthesize only an ungrouped top-level union used as a factor."""
-    return f"({label})" if gnfa._isbracket_req(label) else label
+    return f"({label})" if GNFA._isbracket_req(label) else label
 
 
-def _concatenate(gnfa: ExtendedGNFA, *labels: str | None) -> str | None:
+def _concatenate(*labels: str | None) -> str | None:
     """Multiply regex labels, treating None as empty and '' as epsilon."""
     if any(label is None for label in labels):
         return None
-    return "".join(_group_union(label, gnfa) for label in labels if label)
+    return "".join(_group_union(label) for label in labels if label)
 
 
 def _star(label: str | None) -> str:
@@ -84,13 +87,7 @@ class RegexMixin:
 
         # Tie-break heterogeneous states with their type and repr; ordinary
         # string states follow the mature reference's lexical order exactly.
-        order = sorted(
-            source.states,
-            key=lambda state: (
-                str(state), type(state).__module__,
-                type(state).__qualname__, repr(state),
-            ),
-        )
+        order = sorted(source.states, key=_state_order_key)
         for removed in order:
             survivors = remaining - {removed}
             for start, end in product(
@@ -98,7 +95,6 @@ class RegexMixin:
                 survivors - {gnfa.initial_state},
             ):
                 via = _concatenate(
-                    gnfa,
                     transitions[start][removed],
                     _star(transitions[removed][removed]),
                     transitions[removed][end],

@@ -20,10 +20,11 @@ from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.fa_mixins.regex import RegexMixin
+from automata_extensions.fa.fa_mixins.regex_arden import ArdenMixin
 
 
 class ExtendedDFA(
-    RegexMixin, BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
+    ArdenMixin, RegexMixin, BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
     LanguageOperationsMixin, DFAQuotientMixin, ReverseMixin,
