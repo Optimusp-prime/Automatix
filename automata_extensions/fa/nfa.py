@@ -6,6 +6,7 @@ from automata.fa.fa import FAStateT
 from automata.fa.nfa import NFA
 
 from automata_extensions.fa.base import ExtendedFA
+from automata_extensions.fa.fa_mixins.brzozowski import BrzozowskiMixin
 from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
@@ -17,7 +18,7 @@ from automata_extensions.fa.nfa_mixins.set_operations import NFASetOperationsMix
 
 
 class ExtendedNFA(
-    DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
+    BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
     DeterminizationMixin,
     EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, ExtendedFA, NFA
 ):

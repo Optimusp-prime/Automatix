@@ -6,6 +6,7 @@ from automata.fa.dfa import DFA
 from automata.fa.fa import FAStateT
 
 from automata_extensions.fa.base import ExtendedFA
+from automata_extensions.fa.fa_mixins.brzozowski import BrzozowskiMixin
 from automata_extensions.fa.dfa_mixins.complement import ComplementMixin
 from automata_extensions.fa.dfa_mixins.completeness import CompletenessMixin
 from automata_extensions.fa.dfa_mixins.inclusion import InclusionMixin
@@ -21,7 +22,7 @@ from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 
 
 class ExtendedDFA(
-    CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
+    BrzozowskiMixin, CompletenessMixin, ComplementMixin, ProductMixin, DFASetOperationsMixin,
     InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, DeterminismMixin,
     LanguageOperationsMixin, DFAQuotientMixin, ReverseMixin,

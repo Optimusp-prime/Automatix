@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #49 complete and verified
+Current feature: Level 2 #50 complete and verified
 
-Next planned feature: #50 - Brzozowski automaton / minimization (not started)
+Next planned feature: #51 - Regex -> NFA using Thompson construction (not started)
 
-Current phase: Regex symbol derivatives verified
+Current phase: Brzozowski automaton minimization verified
 
 ## Infrastructure
 
@@ -109,7 +109,7 @@ confirms their names and contracts.
 | 47 | Left quotient | `left_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin` | VERIFIED | `tests/fa/test_word_quotient.py` | DFA changes initial state; NFA links a fresh initial state to the post-word epsilon-closed configuration |
 | 48 | Right quotient | `right_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin`; shared private helper | VERIFIED | `tests/fa/test_word_quotient.py` | Reverse, left quotient by reversed word, reverse; DFA determinizes result |
 | 49 | Brzozowski derivatives | `Regex(expression, *, input_symbols=None).derivative(symbol) -> Regex` | `automata_extensions.regex` with private immutable AST | VERIFIED | `tests/regex/test_derivative.py` | Classical grammar only; ADR-0015 |
-| 50 | Brzozowski automaton / minimization | TBD | TBD | TODO | — | — |
+| 50 | Brzozowski automaton / minimization | `brzozowski_minimize() -> ExtendedDFA` | `BrzozowskiMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_brzozowski.py` | Double reversal/determinization with private reverse-start normalization; ADR-0016 |
 | 51 | Regex -> NFA conversion using Thompson construction | TBD | TBD | TODO | — | — |
 | 52 | NFA -> DFA conversion using subset construction | TBD | TBD | TODO | — | — |
 | 53 | DFA -> regex by state elimination | TBD | TBD | TODO | — | — |
@@ -2206,3 +2206,51 @@ and 1 environment-dependent Graphviz test skipped (1061 collected), including
 all #1-#48 regressions. Strict mypy passes on `automata_extensions`,
 `tests/fa` and `tests/regex` (70 source files). Editable installation,
 public Regex/FA imports and `git diff --check` pass. #50-#62 remain TODO.
+
+## #50 - Brzozowski automaton minimization
+
+- **Professor algorithm / API:** `brzozowski_minimize() -> ExtendedDFA`
+  applies reverse, determinize, reverse, determinize. `BrzozowskiMixin`
+  exposes the operation on ExtendedDFA and ExtendedNFA; GNFA's regex
+  labels and absent word-reading semantics do not support it. Both source
+  types produce a fresh minimal ExtendedDFA of the same language. #49 regex
+  derivatives remain separate and untouched. The source PDFs were not
+  accessed.
+- **Reverse representation bridge:** verified #36 `reverse()` represents
+  the old final-state set with a fresh epsilon-only NFA initial state.
+  Verified #35 `determinize()` correctly retains it in the first subset,
+  which can create an equivalent duplicate of the logical initial subset.
+  After each determinization, a private helper removes only that exact
+  reverse-created state from subset identity, merges only identical
+  resulting subsets, checks transition/finality agreement, and builds a
+  fresh ExtendedDFA. It does not search for equivalent states or call
+  ordinary `minimize()`. The public #35/#36 behavior is unchanged.
+  Partial DFA edges remain partial where the subset construction omits
+  empty destinations. The source is never mutated. ADR-0016 records this
+  compatibility decision.
+- **Mature compatibility / tests:** the executed reference fixture satisfies
+  `d.brzozowski_minimize() == d.minimize()` exactly (`True`). Upstream DFA
+  equality compares languages, so tests also require `is_minimal() is True`:
+  the mature fixture has three result states rather than the four produced
+  by unnormalized composition; a one-state accepting DFA stays at one state.
+  `tests/fa/test_brzozowski.py` covers complete and partial DFA, equivalent
+  and inaccessible states, empty and universal languages, finite and cyclic
+  languages, epsilon acceptance, ordinary and epsilon NFA, multiple active
+  NFA states, immutability, repeat calls, ExtendedDFA composition and MRO.
+  An additional read-only enumeration checked 360 two-state complete or
+  partial DFA structures for language preservation and minimality, plus
+  1024 two-state NFA structures (including epsilon edges) for sampled-word
+  preservation and minimality.
+- **Complexity / limitations:** two reversals and two reachable-subset
+  constructions dominate. Either determinization may have exponentially
+  many subsets of its input NFA, and the second input may itself have grown
+  exponentially. The private normalization copies each resulting transition
+  graph and invokes constructor validation; no cache is added. Upstream
+  word-reading limitations for NFA states named `None` remain unchanged.
+  Git commit: pending.
+
+**#50 validation:** 14 focused tests pass. The full suite has 1074 passed
+and 1 existing environment-dependent Graphviz test skipped (1075 collected),
+including all #1-#49 regressions. Strict mypy passes on
+`automata_extensions`, `tests/fa` and `tests/regex` (72 source files).
+Public imports, MRO and `git diff --check` pass. #51-#62 remain TODO.
