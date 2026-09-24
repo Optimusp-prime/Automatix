@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Level 2 #47-#48 complete and verified
+Current feature: Level 2 #49 complete and verified
 
-Next planned feature: #49 - Brzozowski derivatives (not started)
+Next planned feature: #50 - Brzozowski automaton / minimization (not started)
 
-Current phase: DFA/NFA left and right word quotients verified
+Current phase: Regex symbol derivatives verified
 
 ## Infrastructure
 
@@ -108,7 +108,7 @@ confirms their names and contracts.
 | 46 | Kleene star | `kleene_star() -> ExtendedNFA` | `LanguageOperationsMixin` on ExtendedDFA/ExtendedNFA | VERIFIED | `tests/fa/test_rational_operations.py` | DFA converts via ExtendedNFA.from_dfa; delegates new initial/final epsilon construction to NFA.kleene_star |
 | 47 | Left quotient | `left_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin` | VERIFIED | `tests/fa/test_word_quotient.py` | DFA changes initial state; NFA links a fresh initial state to the post-word epsilon-closed configuration |
 | 48 | Right quotient | `right_quotient_word(word: str) -> ExtendedDFA/ExtendedNFA` | `DFAQuotientMixin`, `NFAQuotientMixin`; shared private helper | VERIFIED | `tests/fa/test_word_quotient.py` | Reverse, left quotient by reversed word, reverse; DFA determinizes result |
-| 49 | Brzozowski derivatives | TBD | TBD | TODO | — | — |
+| 49 | Brzozowski derivatives | `Regex(expression, *, input_symbols=None).derivative(symbol) -> Regex` | `automata_extensions.regex` with private immutable AST | VERIFIED | `tests/regex/test_derivative.py` | Classical grammar only; ADR-0015 |
 | 50 | Brzozowski automaton / minimization | TBD | TBD | TODO | — | — |
 | 51 | Regex -> NFA conversion using Thompson construction | TBD | TBD | TODO | — | — |
 | 52 | NFA -> DFA conversion using subset construction | TBD | TBD | TODO | — | — |
@@ -2154,3 +2154,55 @@ pass with Graphviz `dot` available, including all #1-#46 regressions and
 the mandatory mature `(True, True)` example. Strict mypy passes on
 `automata_extensions` and `tests/fa` (66 source files); editable import,
 MRO and `git diff --check` pass. #49-#62 remain TODO.
+
+## #49 - Brzozowski derivatives of regular expressions
+
+- **Professor requirement / recursive rules:** calculate derivatives of
+  rational expressions by structural recursion: ∅ and ε differentiate to
+  ∅; a literal differentiates to ε on a match and ∅ otherwise; union
+  differentiates componentwise; concatenation adds the right derivative
+  exactly when the left operand is nullable; a star differentiates to the
+  operand derivative followed by the original star. For one symbol `a`,
+  `L(D_a(R)) = a⁻¹L(R)`, the semantic counterpart of #47. No automaton
+  quotient is called. The source PDFs were not accessed.
+- **Public API / placement:** `from automata_extensions.regex import Regex`;
+  `Regex(expression: str, *, input_symbols: AbstractSet[str] | None = None)`
+  and `Regex.derivative(symbol: str) -> Regex`. The object and its private
+  typed AST are immutable; each call returns a new object. A symbol must
+  be one character. An unknown character yields the empty language; an
+  empty or multi-character argument raises `ValueError`. A non-string
+  argument raises `TypeError`. No `ExtendedRegex` upstream class exists.
+- **Grammar / limits:** input accepts ordinary literal characters, `|`,
+  implicit concatenation, `*`, grouping parentheses, and ε as `""` or
+  `()`. Precedence is star, concatenation, then union. The explicit
+  alphabet, when supplied, contains single characters and includes all
+  input literals. Malformed regexes and unsupported `+`, `?`, `&`, `^`,
+  `.`, classes, quantifiers and escapes raise upstream
+  `InvalidRegexError`. This deliberately does not claim full automata-lib
+  regex syntax compatibility.
+- **Empty language / normalization:** the private `EmptyLanguage` node
+  represents ∅; there is no special input token, so input `∅` remains a
+  literal. `__str__` uses `∅` for diagnostic display and is not guaranteed
+  to round-trip through the constructor. Private `nullable` supports the
+  recursive concatenation rule. Private constructors absorb empty union
+  operands, duplicate union operands, epsilon/empty concatenation, stars
+  of empty/epsilon, and nested stars. No public `nullable()`, `simplify()`,
+  word derivative, `to_nfa()`, or `to_dfa()` is added.
+- **Tests / complexity / architecture:** `tests/regex/test_derivative.py`
+  covers the recursive cases, precedence, nullable concatenation, malformed
+  and unsupported syntax, explicit/empty alphabets, unknown symbols,
+  immutability, normalization and independent NFA language checks over
+  representative words. There is **no executed mature-reference derivative
+  example** to reproduce. Parsing visits the source once, with additional
+  structural-comparison costs from normalization. A derivative recursively
+  visits AST nodes and builds an output that may grow with repeated calls;
+  Python recursion depth bounds deeply nested input. ADR-0015 documents the
+  owned AST and limited grammar. #50 is automaton Brzozowski minimization,
+  distinct from #49; #51 may later reuse the AST for Thompson construction.
+  Git commit: pending.
+
+**#49 validation:** 49 focused tests pass. The full suite has 1060 passed
+and 1 environment-dependent Graphviz test skipped (1061 collected), including
+all #1-#48 regressions. Strict mypy passes on `automata_extensions`,
+`tests/fa` and `tests/regex` (70 source files). Editable installation,
+public Regex/FA imports and `git diff --check` pass. #50-#62 remain TODO.
