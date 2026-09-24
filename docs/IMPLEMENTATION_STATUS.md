@@ -17,11 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: #36/#37/#38 - Reversal, epsilon elimination and universality (VERIFIED)
+Current feature: Level 1 (#1-#41) complete and verified
 
-Next planned feature: #39 - State elimination (not started)
+Next planned feature: #42 - Union (not started)
 
-Current phase: language reversal, epsilon propagation and complement-based universality verified
+Current phase: normalized GNFA elimination and common visualization exports verified
 
 ## Infrastructure
 
@@ -93,9 +93,9 @@ confirms their names and contracts.
 | 36 | Reverse | `reverse() -> ExtendedNFA` | ReverseMixin (DFA/NFA) | VERIFIED | tests/fa/test_reverse.py | Upstream NFA reversal; no GNFA semantics |
 | 37 | Epsilon-transition elimination | `remove_epsilon_transitions()`, `eliminate_lambda()` | EliminationMixin (NFA) | VERIFIED | tests/fa/test_elimination.py | Reuses #34; retains all states; alias delegates |
 | 38 | Universal-language decision | `is_universal() -> bool` | ComplementMixin (DFA) | VERIFIED | tests/fa/test_universality.py | Complement then emptiness; no minimization |
-| 39 | State elimination on a normalized ε-NFA/GNFA-like automaton | TBD | TBD | TODO | — | — |
-| 40 | DOT export | TBD | TBD | TODO | — | — |
-| 41 | SVG/PDF/TikZ export | TBD | TBD | TODO | — | — |
+| 39 | State elimination on a normalized ε-NFA/GNFA-like automaton | inherited `to_regex()` | upstream GNFA via ExtendedGNFA | VERIFIED | tests/fa/test_state_elimination.py | Empty language returns upstream None despite str annotation; no DFA/NFA high-level conversion |
+| 40 | DOT export | `dot() -> str` | VisualisationMixin (ExtendedFA) | VERIFIED | tests/fa/test_visualisation.py | Exact mature example; text-only, safe IDs and escaping |
+| 41 | SVG/PDF/TikZ export | `graph() -> Source`, `svg()/pdf()/png() -> bytes`, `tikz()/latex() -> str` | VisualisationMixin (ExtendedFA) | VERIFIED | tests/fa/test_visualisation.py | Python graphviz dependency; system dot required only to render; one integration skip locally |
 
 ## Level 2
 
@@ -1801,3 +1801,112 @@ confirms their names and contracts.
   Requirements #39-#62 remain TODO; no Brzozowski minimization or future API
   is introduced.
 - **Git commit:** pending.
+
+## #39 - State elimination on normalized epsilon-NFA/GNFA structure
+
+- **Professor specification / placement:** eliminate intermediate states of
+  the normalized GNFA representation. This low-level operation is already
+  `automata.fa.gnfa.GNFA.to_regex()`, inherited intact by ExtendedGNFA.
+  Requirement #53 remains the separate high-level DFA-to-regex conversion;
+  no new DFA/NFA `to_regex()` API is introduced here.
+- **Upstream inspection / delegation:** automata-lib 9.2.0 `GNFA.from_dfa`
+  creates distinct structural initial/final states and regex/None cells;
+  its `to_regex()` copies states and transition rows locally, then eliminates
+  intermediate states. `ExtendedGNFA.from_dfa(d)` returns ExtendedGNFA.
+  Existing inheritance provides a sufficient wrapper through the extension
+  type, so no redundant elimination algorithm or public override was added.
+- **Output and limitation:** nonempty-language examples return regex strings;
+  direct epsilon returns `""`. Upstream returns `None` for a GNFA with no
+  initial-to-final path, despite annotating `to_regex()` as `str`. This
+  observed upstream convention is documented rather than silently mapped to
+  epsilon or changed by a global compatibility patch. The source remains
+  unchanged.
+- **Tests / source compatibility:** nine tests in
+  `tests/fa/test_state_elimination.py` cover direct paths, union, star,
+  epsilon, empty language, multiple intermediates, None/heterogeneous
+  states, immutability and inherited method identity. The transition table
+  supplied for the mature DOT example yields the exact mature regex:
+  `GNFA.from_dfa(d).to_regex() == '(ab*ab*a|b)*'`; the ExtendedGNFA variant
+  matches. Upstream `NFA.from_regex` checks representative accepted words.
+- **Complexity:** for k intermediate states, upstream performs k elimination
+  steps and up to O(k²) pair updates at each step, hence O(k³) structural
+  updates. Regex concatenation/copying can grow very large; total runtime
+  and space depend on the lengths of intermediate expressions, potentially
+  exponential in k. The inherited extension adds no algorithmic overhead.
+- **ADR / validation:** reuses ADR-0002 upstream delegation and ADR-0003
+  concrete specialization; no new decision for #39. All 826 runnable tests
+  pass, with one separate renderer integration test skipped. Strict mypy
+  passes on 56 source files. Git commit: pending.
+
+## #40 - Graphviz DOT export
+
+- **Professor specification / mature API:** `dot() -> str` produces plain
+  Graphviz source on ExtendedDFA, ExtendedNFA and ExtendedGNFA through the
+  existing common `VisualisationMixin`. It launches no renderer and works
+  without the Python graphviz package or system `dot` binary.
+- **Shared graph / IDs:** a fresh private immutable description uses
+  `iter_transitions()` and the original state/final sets. The initial state
+  gets `s0`; remaining states use safe IDs by type/repr order, avoiding
+  direct comparisons of heterogeneous state objects. True state values are
+  labels. Edges are grouped by this node order and otherwise retain the
+  upstream iteration order for a given automaton. NFA epsilon and GNFA empty
+  regex labels display ε; GNFA None cells do not create edges.
+- **DOT semantics / escaping:** invisible `__start__` pointer, LR layout,
+  double circles for finals, circles otherwise. Quotes, backslashes,
+  newlines and tabs are escaped in labels; DOT keywords are quoted when used
+  as labels. Partial DFA, self-loops, multiple NFA targets, regex GNFA edges,
+  None, integers, tuples and heterogeneous states are covered.
+- **Exact source compatibility:** the verified three-state fixture yields
+  exactly the supplied mature `d.dot().splitlines()` list, including node
+  numbering and transition order. Tests prove stable repeated output and
+  that text generation invokes no external renderer.
+- **Complexity:** O(|Q| log |Q| + T + C) time and
+  O(|Q| + |E| + C) space, treating ordering-key comparisons as constant
+  cost; long representations add comparison cost. T scans upstream
+  transitions; E counts emitted actual edges and C label/output characters.
+  No cache or source mutation.
+- **Architecture / tests:** `tests/fa/test_visualisation.py` shares 15
+  test cases with #41. [ADR-0014](decisions/ADR-0014-shared-visualization-source.md)
+  records the common model and renderer boundary. All 826 runnable tests
+  pass; strict mypy passes on 56 source files. Git commit: pending.
+
+## #41 - SVG, PDF, PNG, TikZ and LaTeX export
+
+- **Professor / mature contract:** SVG/PDF/TikZ export is provided by the
+  same `VisualisationMixin`. Thin mature compatibility helpers add
+  `graph() -> graphviz.Source`, `png() -> bytes` and `latex() -> str`.
+  `svg()` and `pdf()` each return `bytes`; `tikz()` returns `str`.
+- **Graphviz path:** `graph()` constructs `Source(self.dot())` exactly.
+  `svg()/pdf()/png()` call `graph().pipe(format=...)`, returning output in
+  memory without file side effects. The Python dependency
+  `graphviz>=0.21,<1` is declared in `pyproject.toml`; editable install was
+  verified. The system `dot` executable is required only for binary
+  rendering. Missing/failed renderers propagate the package's clear
+  `ExecutableNotFound`/`CalledProcessError` rather than returning bad data.
+  No executable path is hardcoded.
+- **TikZ/LaTeX path:** TikZ uses the same private state/edge description as
+  DOT, directly in Python. It marks initial and accepting nodes, loops and
+  epsilon edges and escapes LaTeX special characters. `latex()` wraps that
+  text in a standalone document loading TikZ's automata library. Neither
+  textual exporter starts Graphviz or writes a file. Literal alphabet symbol
+  `ε` remains distinct from an actual empty-string epsilon edge in TikZ.
+- **GNFA policy:** render actual regex labels as edge text, render empty
+  string labels as ε, and omit absent None cells. No regex evaluation or
+  word-reading behavior is introduced.
+- **Tests / source compatibility:** the 15 visualization tests cover
+  `len(d.tikz()) > 0`, `len(d.latex()) > 0`, exact `graph().source == dot()`,
+  format-specific `Source.pipe` delegation, returned bytes, no output files,
+  missing-binary error, shared DFA/NFA/GNFA behavior, labels/escaping,
+  immutability, imports and MRO. One real SVG/PDF/PNG integration test is
+  skipped locally because `dot` is absent; it runs when the binary exists.
+- **Typing / complexity / ADR:** graphviz 0.21 lacks a `py.typed` marker,
+  so a narrow local stub in `typings/graphviz` types exactly the Source API
+  used; strict mypy passes on 56 source files. DOT/TikZ generation has
+  #40's ordering/scan/label cost; binary rendering adds Graphviz's own
+  layout cost plus output-size memory. See [ADR-0014](decisions/ADR-0014-shared-visualization-source.md).
+  No source mutation, cache or hardcoded system path. Git commit: pending.
+
+**Level 1 completion:** every requirement #1-#41 is VERIFIED; #42-#62
+remain TODO. Validation: 826 passed, one renderer integration skip, strict
+mypy on 56 source files, `git diff --check` clean, editable install and public
+imports/MRO verified. `reference/automata-lib` remains unchanged.
