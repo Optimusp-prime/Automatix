@@ -106,11 +106,15 @@ def test_source_immutable_and_alias_retains_unreachable_states() -> None:
 
 
 def test_elimination_source_compatibility_regression() -> None:
-    # Minimal compatible example; the original mature fixture was not supplied.
+    # Exact n fixture in the mature executed reference.
     n = ExtendedNFA(
-        states={"p", "r", "f"}, input_symbols={"a"},
-        transitions={"p": {"": {"r"}}, "r": {"a": {"f"}}},
-        initial_state="p", final_states={"f"},
+        states={"p", "q", "r"}, input_symbols={"a", "b"},
+        transitions={
+            "p": {"a": {"p", "q"}, "": {"r"}},
+            "q": {"b": {"q"}},
+            "r": {"a": {"r"}},
+        },
+        initial_state="p", final_states={"q", "r"},
     )
     assert n.remove_epsilon_transitions().accepts_input("a") is True
     assert n.eliminate_lambda().accepts_input("a") is True

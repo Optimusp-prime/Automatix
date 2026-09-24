@@ -158,6 +158,10 @@ class Regex:
     def derivative(self, symbol: str) -> Regex:
         """Return the Brzozowski derivative by one character.
 
+        Structural recursion applies the union, concatenation and star
+        derivative rules, with nullable tests and small normalization
+        identities. The source expression is unchanged.
+
         Parameters
         ----------
         symbol : str
@@ -178,9 +182,11 @@ class Regex:
 
         Complexity
         ----------
-        Visits the input AST recursively and constructs a result whose size
-        may grow with repeated derivatives. Structural normalization can add
-        subtree comparison cost; recursion depth follows AST depth.
+        Let n be the number of nodes in the input AST, h its depth, and C
+        the total nodes examined by repeated nullable checks and structural
+        equality tests during this call. Time is O(n + C); new AST nodes
+        and recursion stack use O(n + h) auxiliary space. Existing AST
+        subtrees are shared. Repeated derivatives can grow the expression.
 
         References
         ----------

@@ -84,12 +84,15 @@ class DFAQuotientMixin:
 
         Complexity
         ----------
-        Two reversals and one NFA left quotient require time proportional
-        to their constructed graphs and ``|word|`` simulation. Subsequent
-        subset construction can discover up to 2**N states for an
-        intermediate N-state NFA; time/space are exponential in N in the
-        worst case, plus upstream construction/validation costs. See
-        ``determinize`` for its detailed reachable-subset bound.
+        Let C36a/C36b, C47 and C35 be the time costs of the two reversals,
+        NFA left quotient and determinization on their actual intermediate
+        inputs, including constructor validation. Let S36a/S36b, S47 and
+        S35 be their peak space costs. This composition takes
+        O(|word| + C36a + C47 + C36b + C35) time and
+        O(S36a + S47 + S36b + S35) peak space; the latter conservatively
+        includes retained intermediates. For an N-state NFA entering #35,
+        its reachable-subset count can reach 2**N. See ``determinize``
+        for its bound in terms of that count and the transition graph.
 
         References
         ----------

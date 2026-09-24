@@ -88,6 +88,18 @@ def test_dfa_missing_edge_and_unknown_symbol_yield_empty_language() -> None:
             assert result.accepts_input(suffix) is False
 
 
+def test_dfa_left_quotient_keeps_valid_none_state() -> None:
+    source = ExtendedDFA(
+        states={None}, input_symbols={"a"},
+        transitions={None: {"a": None}}, initial_state=None,
+        final_states={None},
+    )
+    quotient = source.left_quotient_word("a")
+    assert quotient.initial_state is None
+    assert quotient.final_states == {None}
+    assert quotient.accepts_input("") is True
+
+
 @pytest.mark.parametrize("final", [False, True])
 def test_one_state_dfa_empty_word_and_language_extremes(final: bool) -> None:
     source = ExtendedDFA(

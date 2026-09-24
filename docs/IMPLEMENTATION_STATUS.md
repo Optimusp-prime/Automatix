@@ -831,8 +831,10 @@ confirms their names and contracts.
 - **Specification / source precedence:** the professor asks for the
   succession of states (DFA) or active-state sets (NFA). This takes
   precedence over the mature reference's DFA transition-triplet format.
-  The professor information came from the task prompt; the PDFs were not
-  accessed.
+  The primary PDF states this succession contract. For the mature fixture,
+  `execution_trace("aab")` returns `['0', '1', '2', '2']` in Automatix; the
+  mature PDF instead displays three `(state, symbol, state)` triples.
+  This is an approved primary-over-mature compatibility divergence.
 - **Public API / placement:** `execution_trace(word: str)` in the existing
   `WordMixin` through `ExtendedFA`. It returns a list of configurations,
   without an acceptance flag or another public trace API.
@@ -2193,11 +2195,12 @@ MRO and `git diff --check` pass. #49-#62 remain TODO.
   and unsupported syntax, explicit/empty alphabets, unknown symbols,
   immutability, normalization and independent NFA language checks over
   representative words. There is **no executed mature-reference derivative
-  example** to reproduce. Parsing visits the source once, with additional
-  structural-comparison costs from normalization. A derivative recursively
-  visits AST nodes and builds an output that may grow with repeated calls;
-  Python recursion depth bounds deeply nested input. ADR-0015 documents the
-  owned AST and limited grammar. #50 is automaton Brzozowski minimization,
+  example** to reproduce. For n input AST nodes, depth h, and C total nodes
+  examined by nullable/equality checks, one derivative takes O(n + C) time
+  and O(n + h) auxiliary space through structural sharing. Repeated calls
+  can grow the expression; Python recursion depth bounds deeply nested
+  input. ADR-0015 documents the owned AST and limited grammar. #50 is
+  automaton Brzozowski minimization,
   distinct from #49; #51 may later reuse the AST for Thompson construction.
   Git commit: pending.
 
@@ -2244,9 +2247,12 @@ public Regex/FA imports and `git diff --check` pass. #50-#62 remain TODO.
 - **Complexity / limitations:** two reversals and two reachable-subset
   constructions dominate. Either determinization may have exponentially
   many subsets of its input NFA, and the second input may itself have grown
-  exponentially. The private normalization copies each resulting transition
-  graph and invokes constructor validation; no cache is added. Upstream
-  word-reading limitations for NFA states named `None` remain unchanged.
+  exponentially. With C36i, C35i and CNi the reversal, determinization and
+  normalization time costs for pass i, the compositional time bound is
+  O(sum(C36i + C35i + CNi)) over i = 1, 2; the analogous sum of peak-space
+  costs bounds space. The private normalization copies each resulting
+  transition graph and invokes constructor validation; no cache is added.
+  Upstream word-reading limitations for NFA states named `None` remain unchanged.
   Git commit: pending.
 
 **#50 validation:** 14 focused tests pass. The full suite has 1074 passed

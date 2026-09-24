@@ -157,11 +157,15 @@ def test_new_extended_result_source_unchanged_and_composable() -> None:
 
 
 def test_determinization_source_compatibility_regression() -> None:
-    # Minimal analogue of the supplied mature n example, not its unknown fixture.
+    # Exact n fixture in the mature executed reference.
     n = ExtendedNFA(
-        states={"p", "r", "f"}, input_symbols={"a"},
-        transitions={"p": {"": {"r"}}, "r": {"a": {"f"}}},
-        initial_state="p", final_states={"f"},
+        states={"p", "q", "r"}, input_symbols={"a", "b"},
+        transitions={
+            "p": {"a": {"p", "q"}, "": {"r"}},
+            "q": {"b": {"q"}},
+            "r": {"a": {"r"}},
+        },
+        initial_state="p", final_states={"q", "r"},
     )
     assert (n.determinize().accepts_input("a"),
             n.to_dfa().accepts_input("a")) == (True, True)

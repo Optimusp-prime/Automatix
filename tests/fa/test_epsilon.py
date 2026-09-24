@@ -81,11 +81,15 @@ def test_none_heterogeneous_states_and_immutability() -> None:
 
 
 def test_epsilon_source_compatibility_regression() -> None:
-    # Minimal fixture for the supplied example; original n is not provided.
+    # Exact n fixture in the mature executed reference.
     n = ExtendedNFA(
-        states={"p", "q", "r"}, input_symbols={"a"},
-        transitions={"p": {"": {"r"}}, "r": {"a": {"q"}}},
-        initial_state="p", final_states={"q"},
+        states={"p", "q", "r"}, input_symbols={"a", "b"},
+        transitions={
+            "p": {"a": {"p", "q"}, "": {"r"}},
+            "q": {"b": {"q"}},
+            "r": {"a": {"r"}},
+        },
+        initial_state="p", final_states={"q", "r"},
     )
     assert (sorted(n.epsilon_closure("p")),
             sorted(n.epsilon_closure_of_set({"p"}))) == (["p", "r"], ["p", "r"])

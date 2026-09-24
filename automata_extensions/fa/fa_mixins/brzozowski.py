@@ -72,12 +72,15 @@ class BrzozowskiMixin:
 
         Complexity
         ----------
-        Two reversals, two reachable-subset constructions and two linear
-        output rebuilds. Each determinization can discover exponentially
-        many subsets of its input NFA; the second input may itself be
-        exponentially larger than the original. Time and space are bounded
-        by the generated intermediate graphs and their constructor
-        validation, not by ordinary DFA partition-refinement bounds.
+        Let C36i, C35i and CNi be the time costs of reversal, subset
+        construction and the normalization rebuild in pass i (i = 1, 2),
+        on their actual intermediate graphs and including validation.
+        With the analogous peak-space costs S36i, S35i and SNi, time is
+        O(sum(C36i + C35i + CNi)) and peak space is
+        O(sum(S36i + S35i + SNi)) over both passes; the space sum
+        conservatively includes retained intermediates. Each #35 call
+        may generate up to 2**N subsets of its N-state input, and the
+        second input may already be exponentially larger than the source.
 
         References
         ----------

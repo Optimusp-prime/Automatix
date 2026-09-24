@@ -36,7 +36,7 @@ def test_public_classes(extended: type[FA], upstream: type[FA]) -> None:
 def test_extended_fa_is_abstract() -> None:
     """La base commune conserve le contrat abstrait upstream."""
     with pytest.raises(TypeError, match="abstract"):
-        ExtendedFA()
+        ExtendedFA()  # type: ignore[abstract]  # Deliberate negative runtime test.
 
 
 def test_extended_dfa_instantiation(simple_dfa: ExtendedDFA) -> None:
