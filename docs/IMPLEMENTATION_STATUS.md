@@ -120,7 +120,7 @@ confirms their names and contracts.
 | # | Requirement | Planned public API | Layer / Mixin | Status | Tests | Notes |
 | - | ----------- | ------------------ | ------------- | ------ | ----- | ----- |
 | 55 | Automaton <-> regular grammar conversion | `to_grammar()` (DFA/NFA); `ExtendedNFA.from_grammar(grammar)`, `from_grammar_string(text)`; `Grammar` | `GrammarMixin`, `NFAGrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_grammar.py` | Right-linear, immutable, language-preserving conversion; approved mature divergence; ADR-0017 |
-| 56 | Derivation trees | TBD | TBD | TODO | — | — |
+| 56 | Derivation trees | `Grammar.derivation_tree(word)`; `ExtendedDFA/ExtendedNFA.derivation_tree(word)`; `DerivationStep.word()/sequence()` | `GrammarMixin`, `automata_extensions.grammar` | VERIFIED | `tests/fa/test_derivation.py` | Immutable derivation chain; deterministic BFS; exact mature sequence |
 | 57 | Arden lemma | TBD | TBD | TODO | — | — |
 | 58 | Systems of rational-language equations | TBD | TBD | TODO | — | — |
 | 59 | Myhill–Nerode classes / language quotients | TBD | TBD | TODO | — | — |
@@ -2496,4 +2496,65 @@ Editable-install imports, DFA-only MRO and `git diff --check` pass.
 **#55 validation:** 22 focused tests, 75 focused conversion/regression tests,
 and the full suite (1132 passed, 1 environment-dependent Graphviz skip) pass.
 Strict mypy passes on 83 source files. Public imports, MRO, editable-install
-and `git diff --check` are verified. #56-#62 remain TODO.
+and `git diff --check` are verified. At #55 verification,
+#56-#62 remained TODO.
+
+## #56 - Derivation chains for grammar-generated words
+
+- **Professor specification / public API:** Build a derivation tree for a
+  grammar word. The supplied mature observable is a derivation *chain*, so
+  the implementation introduces immutable `DerivationStep` rather than a
+  general ParseTree/Node/Leaf hierarchy. Public
+  `Grammar.derivation_tree(word: str) -> DerivationStep` and
+  `ExtendedDFA/ExtendedNFA.derivation_tree(word: str) -> DerivationStep`
+  return one chain. `DerivationStep.word() -> str` returns the terminal
+  word; `sequence() -> str` joins all sentential forms with exactly
+  `" => "`. GNFA is excluded because #55 has no regex-label grammar
+  conversion. No upstream derivation operation exists in automata-lib 9.2.0.
+- **Representation / algorithm:** A frozen, slotted DerivationStep retains
+  a tuple of sentential-form strings and the terminal word. `Grammar` uses
+  breadth-first search over `(nonterminal, consumed position)` and prunes
+  rules whose terminal word is not a prefix of the remaining target. Each
+  configuration is visited at most once, so epsilon/unit cycles terminate.
+  Productions are sorted by `(head, word, target)` before search: the
+  shortest rule chain wins, with lexical order breaking equal-length ties.
+  If no complete derivation exists, upstream `RejectionException` is raised;
+  no partial DerivationStep is returned. Grammar and automata remain
+  unchanged.
+- **#55 reuse / mature compatibility:** Automata first call `to_grammar()`
+  and use the same private state-name mapping as #55 to display original
+  state spellings. Thus the exact mature fixture gives
+  `d.derivation_tree("aaa").sequence() ==
+  "0 => a1 => aa2 => aaa0 => aaa"` and the observed pair
+  `(word(), sequence()) == ("aaa", "0 => a1 => aa2 => aaa0 => aaa")`.
+  The approved #55 grammar `S -> aS | b` still accepts `aab`; its direct
+  structural Grammar derivation is `S => aS => aaS => aab`. NFA epsilon
+  transitions appear as unit-production steps. Multi-character grammar
+  words remain single derivation steps, while #55's NFA conversion expands
+  them only for automaton execution.
+- **Complexity / limits:** Let n be target length, N nonterminals, P
+  productions, L total terminal-word length, K maximum production-key
+  comparison length, C total selected-form output length, Q source
+  automaton states, T scanned/emitted source transitions, and Sigma the
+  alphabet. Grammar search and rendering take expected
+  O(|P| log(|P| + 1) * K + (n + 1)(|P| + L) + C) time and
+  O(|P| + |N|(n + 1) + C) auxiliary space. Automaton calls additionally
+  build the #55 Grammar and name mapping, for expected
+  O(|Q| log |Q| + |Sigma| + T + |P| log(|P| + 1) * K +
+  (n + 1)(|P| + L) + C) time. `word()` is O(1); `sequence()` is linear
+  in total rendered characters. One derivation is returned, not all
+  ambiguous parses. Long derivations materialize the whole output chain.
+  These bounds assume expected O(1) hash operations and constant-size
+  state-key comparisons; docstrings state the full method-specific bounds.
+- **Tests / decisions:** `tests/fa/test_derivation.py` adds 13 tests for
+  the exact mature outputs, epsilon and terminal rules, long production
+  words, nondeterminism, ambiguous tie-breaking, unit cycles, rejected
+  words, partial/initial-final DFA, epsilon NFA, immutability and the #55
+  divergence. No new ADR: the immutable chain and deterministic search
+  fit the existing #55 Grammar representation without a durable
+  cross-feature architectural decision. Git commit: pending.
+
+**#56 validation:** 35 focused #55/#56 tests and the full suite (1145 passed,
+1 environment-dependent Graphviz skip) pass. Strict mypy passes on 85
+source files. Public import/MRO, editable install and `git diff --check`
+pass. #57-#62 remain TODO.

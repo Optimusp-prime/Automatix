@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, TypeAlias
 
+from automata_extensions.grammar.derivation import DerivationStep, _derive
+
 # (head nonterminal, terminal word, optional continuation nonterminal).
 # None distinguishes A -> w from A -> wB; an empty word denotes epsilon.
 Production: TypeAlias = tuple[str, str, str | None]
@@ -88,3 +90,43 @@ class Grammar:
         object.__setattr__(self, "nonterminals", nonterminal_set)
         object.__setattr__(self, "start_symbol", start_symbol)
         object.__setattr__(self, "productions", production_set)
+
+    def derivation_tree(self, word: str) -> DerivationStep:
+        """Find one finite derivation chain for a generated word.
+
+        Breadth-first search visits each (nonterminal, consumed position)
+        at most once. Rules are examined in lexical (head, word, target)
+        order, making the shortest-rule derivation deterministic even for
+        ambiguous grammars. Prefix-incompatible rules are pruned; epsilon
+        and unit cycles cannot cause infinite search. No grammar data changes.
+
+        Parameters
+        ----------
+        word : str
+            Desired terminal word, possibly empty.
+
+        Returns
+        -------
+        DerivationStep
+            Immutable sequence of complete sentential forms.
+
+        Raises
+        ------
+        RejectionException
+            If the grammar cannot derive the requested word.
+
+        Complexity
+        ----------
+        Let n = len(word), N be the nonterminals, P the productions, L the
+        total length of their terminal words, K the maximum production-key
+        comparison length, and C the total length of forms in the selected
+        derivation. Expected time is O(|P| log(|P| + 1) * K +
+        (n + 1)(|P| + L) + C), including rule sorting, prefix checks at
+        at most |N|(n + 1) configurations, and rendering. Auxiliary space
+        is O(|P| + |N|(n + 1) + C). Hash lookups are assumed O(1).
+
+        References
+        ----------
+        Professor requirement #56; supplied mature derivation chain API.
+        """
+        return _derive(self, word)
