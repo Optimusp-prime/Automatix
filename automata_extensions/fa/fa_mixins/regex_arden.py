@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 
 from automata.fa.fa import FAStateT
@@ -53,7 +54,15 @@ class ArdenMixin:
         algorithm or GNFA.to_regex().
         """
         source = cast("ExtendedDFA", self)
-        ordered = sorted(source.accessible_states(), key=_state_order_key)
+        return self._to_regex_arden_for_order(
+            sorted(source.accessible_states(), key=_state_order_key)
+        )
+
+    def _to_regex_arden_for_order(
+        self, ordered: Sequence[FAStateT]
+    ) -> str | None:
+        """Run the established Arden solver with a caller-supplied order."""
+        source = cast("ExtendedDFA", self)
         coefficients: dict[FAStateT, dict[FAStateT, str | None]] = {
             state: {target: None for target in ordered} for state in ordered
         }

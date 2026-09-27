@@ -132,10 +132,11 @@ def test_query_is_immutable_and_dfa_specific() -> None:
     assert MinimizationMixin in ExtendedDFA.__mro__
     assert MinimizationMixin not in ExtendedNFA.__mro__
     assert MinimizationMixin not in ExtendedGNFA.__mro__
-    assert not any(
-        hasattr(d, name) for name in
-        ("pair_table", "pair_table_str", "print_pair_table")
-    )
+    # The mature-compatibility table extends this DFA-only mixin.
+    for name in ("pair_table", "pair_table_str", "print_pair_table"):
+        assert hasattr(d, name)
+        assert not hasattr(ExtendedNFA, name)
+        assert not hasattr(ExtendedGNFA, name)
 
 
 def test_source_compatibility_three_singleton_classes() -> None:

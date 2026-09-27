@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from itertools import product
+from collections.abc import Sequence
 from typing import cast
 
 from automata.fa.dfa import DFA
@@ -76,6 +77,13 @@ class RegexMixin:
         GNFA.from_dfa normalization, but not upstream GNFA.to_regex, whose
         degree-based elimination yields a different observable expression.
         """
+        source = cast(DFA, self)
+        return self._to_regex_for_order(
+            sorted(source.states, key=_state_order_key)
+        )
+
+    def _to_regex_for_order(self, order: Sequence[FAStateT]) -> str | None:
+        """Run the established elimination engine with a caller-supplied order."""
         from automata_extensions.fa.gnfa import ExtendedGNFA
 
         source = cast(DFA, self)
@@ -85,9 +93,6 @@ class RegexMixin:
             state: dict(paths) for state, paths in gnfa.transitions.items()
         }
 
-        # Tie-break heterogeneous states with their type and repr; ordinary
-        # string states follow the mature reference's lexical order exactly.
-        order = sorted(source.states, key=_state_order_key)
         for removed in order:
             survivors = remaining - {removed}
             for start, end in product(

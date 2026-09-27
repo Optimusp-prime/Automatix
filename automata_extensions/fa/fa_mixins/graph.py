@@ -67,6 +67,50 @@ def _build_predecessors(
 class GraphMixin:
     """Expose direct graph-neighbor queries shared by finite automata."""
 
+    def successors_graph(
+        self: _GraphSource, state: FAStateT
+    ) -> FrozenSet[FAStateT]:
+        """Return the direct successors of a state, ignoring edge labels.
+
+        A loop contributes the state itself. Parallel labeled transitions
+        contribute their destination once. NFA epsilon edges count, while
+        GNFA cells labeled None do not represent edges. The source is not
+        modified and no graph analysis is cached.
+
+        Parameters
+        ----------
+        state : FAStateT
+            State whose outgoing neighbors are requested; None is valid
+            when it belongs to the automaton.
+
+        Returns
+        -------
+        FrozenSet[FAStateT]
+            Immutable set of immediate destinations, possibly empty.
+
+        Raises
+        ------
+        InvalidStateError
+            If state is absent or unhashable.
+
+        Complexity
+        ----------
+        O(|Q| + T) expected time and O(|Q| + |E|) space. Q is the state
+        set, E the emitted transitions, and T the cost of scanning the
+        upstream iterator, including empty NFA entries and GNFA None cells.
+
+        References
+        ----------
+        Mature GraphMixin example; ADR-0004 and ADR-0011.
+        """
+        try:
+            valid_state = state in self.states
+        except TypeError:
+            valid_state = False
+        if not valid_state:
+            raise InvalidStateError(f"{state!r} is not a valid state")
+        return frozenset(_build_successors(self)[state])
+
     def predecessors_graph(
         self: _GraphSource, state: FAStateT
     ) -> FrozenSet[FAStateT]:

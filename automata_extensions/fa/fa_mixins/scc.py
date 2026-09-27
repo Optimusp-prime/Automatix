@@ -1,14 +1,45 @@
 """Strongly connected components of a finite automaton's transition graph."""
 
-from typing import FrozenSet
+from typing import FrozenSet, Protocol
 
 from automata.fa.fa import FAStateT
 
 from automata_extensions.fa.fa_mixins.graph import _build_successors, _GraphSource
 
 
+class _SCCQuery(Protocol):
+    """Existing partition operation needed by the connectivity predicate."""
+
+    def strongly_connected_components(self) -> list[FrozenSet[FAStateT]]: ...
+
+
 class SCCMixin:
     """Analyze strongly connected components using the common graph layer."""
+
+    def is_strongly_connected(self: _SCCQuery) -> bool:
+        """Test whether every state can reach every other state.
+
+        The test uses the existing complete Tarjan partition. A valid
+        upstream finite automaton has at least one state, so a singleton
+        without a loop is strongly connected by the zero-length path.
+        The source is unchanged.
+
+        Returns
+        -------
+        bool
+            True exactly when all states form one component.
+
+        Complexity
+        ----------
+        O(|Q| + T) expected time and O(|Q| + |E|) space, inherited from
+        ``strongly_connected_components``. Q is the number of states,
+        E the emitted edges and T the upstream transition scan cost.
+
+        References
+        ----------
+        Mature SCCMixin example; professor requirement #10; ADR-0008.
+        """
+        return len(self.strongly_connected_components()) == 1
 
     def strongly_connected_components(
         self: _GraphSource,

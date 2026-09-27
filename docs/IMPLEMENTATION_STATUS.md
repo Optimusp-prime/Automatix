@@ -17,11 +17,12 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Final requirement #62 complete and verified
+Current feature: Mature-reference compatibility backlog M1–M10
 
-Next planned feature: None; professor requirements #1–#62 are VERIFIED
+Next planned feature: Submission commit after user review;
+professor requirements #1–#62 and supplemental M1–M10 remain VERIFIED
 
-Current phase: All professor requirements verified
+Current phase: Primary and supplemental requirements verified
 
 ## Infrastructure
 
@@ -2839,3 +2840,46 @@ and test files) pass. Editable installation, public imports/MRO and
 **#62 validation:** 192 targeted #32/#47/#59/#60/#62 tests and the full
 suite (1247 passed, 1 skipped) pass; strict mypy passes on 62 selected
 source and test files. Requirements #1–#62 are all VERIFIED.
+
+## Compatibilité supplémentaire avec la référence mature
+
+Cette série M1–M10 complète les 62 exigences primaires sans les renuméroter.
+La spécification primaire garde la priorité sur les exemples matures.
+
+| ID | API | Statut | Emplacement | Tests | Complexité | ADR |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | `successors_graph(state)` | VERIFIED | `GraphMixin`, `ExtendedFA` | `tests/fa/test_mature_graph_scc.py` | O(&#124;Q&#124; + T) temps ; O(&#124;Q&#124; + &#124;E&#124;) espace | ADR-0011 |
+| M2 | `pair_table()` | VERIFIED | `MinimizationMixin`, DFA | `tests/fa/test_mature_pair_table.py` | O(&#124;Q&#124;²&#124;Σ&#124; + V + &#124;Q&#124; log &#124;Q&#124;) temps ; O(&#124;Q&#124;²&#124;Σ&#124; + M) espace | ADR-0023 |
+| M3 | `pair_table_str(show_round=True)` | VERIFIED | `MinimizationMixin`, DFA | `tests/fa/test_mature_pair_table.py` | analyse M2 + O(R) formatage, R = longueur du texte | ADR-0023 |
+| M4 | `print_pair_table(show_round=True)` | VERIFIED | `MinimizationMixin`, DFA | `tests/fa/test_mature_pair_table.py` | analyse M2 + O(R) formatage et sortie | ADR-0023 |
+| M5 | `to_regex_optimum()` | VERIFIED | `RegexOptimumMixin`, DFA | `tests/fa/test_mature_regex_optimum.py` | k = min(n!, 24) ; O(k n³ + S + kV) temps, S peut croître exponentiellement | ADR-0024 |
+| M6 | `to_regex_arden_optimum()` | VERIFIED | `RegexOptimumMixin`, DFA | `tests/fa/test_mature_regex_optimum.py` | k = min(m!, 24) ; O(k m³ + kT + S) temps, S peut croître exponentiellement | ADR-0024 |
+| M7 | `is_strongly_connected()` | VERIFIED | `SCCMixin`, `ExtendedFA` | `tests/fa/test_mature_graph_scc.py` | O(&#124;Q&#124; + T) temps ; O(&#124;Q&#124; + &#124;E&#124;) espace | ADR-0008 |
+| M8 | `animate(word)` | VERIFIED | `AnimationMixin`, DFA | `tests/fa/test_mature_animation.py` | O(T + R) temps ; O(R + n) espace | — |
+| M9 | `patch_cached_method()` | VERIFIED | `utils.patches`, import automatique | `tests/test_mature_utils.py` | O(1) par appel et accès au descripteur, hors cache | ADR-0025 |
+| M10 | `render_diagram(agraph, filename, prog="dot", fmt=None)` | VERIFIED | `utils.render` et export `utils` | `tests/test_mature_utils.py` ; rendu réel PNG/SVG/PDF | O(P + D) hors coût externe Graphviz | ADR-0026 |
+
+Q désigne les états, E les arêtes émises, Σ l'alphabet, T le coût du parcours
+des transitions ou de la simulation déléguée selon la ligne, V/M les coûts de
+construction/validation upstream, n la taille de l'entrée, R celle du HTML,
+P le nombre de répertoires du PATH, D la longueur DOT et S le coût des
+chaînes/AST intermédiaires. Les méthodes M5/M6 essaient au plus 24 ordres ;
+la recherche est factorielle pour les petits automates. Les exemples matures
+M1–M9 sont couverts par les tests dédiés ; M10 a aussi rendu de vrais
+fichiers temporaires. Le PDF mature montre trois espaces initiaux dans
+`pair_table_str(True)`, tandis que la demande M3 exige explicitement un
+espace. La sortie suit la demande pour cet écart purement typographique ;
+les cellules et leurs rounds sont identiques.
+Pour M1, les voisins sont les mêmes que dans l'exemple mature, mais le
+type public reste `frozenset` comme `predecessors_graph` (#18) ; l'exemple
+du PDF affiche des `set`. L'utilisateur a confirmé ce choix afin de
+préserver le contrat VERIFIED au niveau commun DFA/NFA/GNFA.
+
+**Validation M1–M10 (2026-09-27) :** 28 nouveaux cas pytest, 176 tests
+ciblés et voisins, 1276 tests réussis sur la suite complète, 0 skip ;
+mypy strict sur 114 fichiers ; installation editable réussie ; imports,
+MRO et portée des API vérifiés ; Graphviz réel 14.1.2 a rendu PNG, SVG
+et PDF dans un répertoire temporaire. `git diff --check` est propre.
+L'espacement M3/M4 suit la chaîne exacte explicitement prescrite dans
+la demande ; l'écart typographique du PDF est conservé dans ADR-0023.
+Les exigences primaires #1–#62 restent toutes VERIFIED.

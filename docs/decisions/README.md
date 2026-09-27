@@ -39,6 +39,10 @@ mark its status Superseded with a link to the replacement once accepted.
 | [ADR-0020](ADR-0020-myhill-nerode-quotient-representation.md) | Accepted | Myhill–Nerode quotients |
 | [ADR-0021](ADR-0021-automaton-morphism-projection-quotient.md) | Accepted | Morphisms and projection |
 | [ADR-0022](ADR-0022-syntactic-monoid-representation.md) | Accepted | Syntactic monoid |
+| [ADR-0023](ADR-0023-pair-table-rounds.md) | Accepted | Read-only pair-table rounds |
+| [ADR-0024](ADR-0024-bounded-regex-order-search.md) | Accepted | Bounded regex order search |
+| [ADR-0025](ADR-0025-cached-method-runtime-patch.md) | Accepted | Cached-method runtime patch |
+| [ADR-0026](ADR-0026-subprocess-diagram-rendering.md) | Accepted | Graphviz subprocess renderer |
 
 ## Template
 

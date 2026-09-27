@@ -1,7 +1,9 @@
 """DFA state distinguishability by iterative table filling."""
 
 from collections import defaultdict, deque
+from collections.abc import Mapping
 from itertools import combinations
+from types import MappingProxyType
 from typing import Protocol, Self, TypeAlias, cast
 
 from automata.fa.dfa import DFA
@@ -33,17 +35,22 @@ class _MinimizationQueries(Protocol):
     def equivalence_classes(self) -> list[frozenset[FAStateT]]: ...
 
 
-def _distinguishability_table(dfa: DFA) -> set[_StatePair]:
-    """Mark epsilon-distinct pairs, then propagate marks to predecessor pairs."""
+def _pair_order_key(state: FAStateT) -> tuple[str, str, str, str]:
+    """Order common and heterogeneous state labels deterministically."""
+    return (str(state), type(state).__module__, type(state).__qualname__, repr(state))
+
+
+def _distinguishability_table(dfa: DFA) -> dict[_StatePair, int]:
+    """Record the first round marking each pair with one shared BFS."""
     pairs = [frozenset((p, q)) for p, q in combinations(dfa.states, 2)]
-    marked: set[_StatePair] = set()
+    rounds: dict[_StatePair, int] = {}
     pending: deque[_StatePair] = deque()
     dependents: dict[_StatePair, set[_StatePair]] = defaultdict(set)
 
     for pair in pairs:
         p, q = tuple(pair)
         if (p in dfa.final_states) != (q in dfa.final_states):
-            marked.add(pair)
+            rounds[pair] = 0
             pending.append(pair)
         for symbol in dfa.input_symbols:
             next_p = dfa.transitions[p][symbol]
@@ -52,12 +59,23 @@ def _distinguishability_table(dfa: DFA) -> set[_StatePair]:
                 dependents[frozenset((next_p, next_q))].add(pair)
 
     while pending:
-        for pair in dependents[pending.popleft()]:
-            if pair not in marked:
-                marked.add(pair)
+        distinguished = pending.popleft()
+        for pair in dependents[distinguished]:
+            if pair not in rounds:
+                rounds[pair] = rounds[distinguished] + 1
                 pending.append(pair)
 
-    return marked
+    return rounds
+
+
+def _original_pair_rounds(source: DFA, completed: DFA) -> dict[_StatePair, int | None]:
+    """Run table filling on the complete DFA and retain original pairs."""
+    rounds = _distinguishability_table(completed)
+    ordered = sorted(source.states, key=_pair_order_key)
+    return {
+        frozenset((p, q)): rounds.get(frozenset((p, q)))
+        for p, q in combinations(ordered, 2)
+    }
 
 
 class MinimizationMixin:
@@ -93,8 +111,129 @@ class MinimizationMixin:
         """
         original = cast(DFA, self)
         completed = cast(_CompletableDFA, self).complete()
-        marked = _distinguishability_table(completed)
-        return {pair for pair in marked if pair.issubset(original.states)}
+        rounds = _original_pair_rounds(original, completed)
+        return {pair for pair, round_number in rounds.items() if round_number is not None}
+
+    def pair_table(self) -> Mapping[_StatePair, int | None]:
+        """Return all original DFA state pairs and their marking rounds.
+
+        Final/nonfinal pairs have round 0. A pair first distinguished by
+        a word of length k has round k. Equivalent pairs map to None.
+        Partial DFAs are completed only for analysis; their synthetic
+        sink never appears as a public key. The returned mapping is read
+        only, with pair insertion order based on a safe state-label key.
+        The source remains unchanged.
+
+        Returns
+        -------
+        Mapping[frozenset[FAStateT], int | None]
+            Every unordered pair of distinct original states and its
+            shortest distinguishing-word length, or None.
+
+        Complexity
+        ----------
+        O(|Q|² * |Sigma| + V + |Q| log |Q|) expected time and
+        O(|Q|² * |Sigma| + M) space. Q is the source state set,
+        Sigma its alphabet, and V/M upstream completion and validation
+        time/space; state-key construction and comparison add their
+        actual string costs.
+
+        References
+        ----------
+        Mature MinimizationMixin pair-table description; primary #29;
+        ADR-0023.
+        """
+        original = cast(DFA, self)
+        completed = cast(_CompletableDFA, self).complete()
+        return MappingProxyType(_original_pair_rounds(original, completed))
+
+    def pair_table_str(self, show_round: bool = True) -> str:
+        """Render the complete pair table as deterministic ASCII rows.
+
+        The first line lists all but the last state. Row i lists state i
+        followed by cells for pairs with the preceding states. With
+        show_round=True, a marked pair shows its shortest distinguishing
+        round and an equivalent pair shows a dot. Otherwise a marked pair
+        shows X and an equivalent pair a dot. The one-space initial header
+        for one-character labels follows the explicit M3 prompt example.
+        A one-state DFA has no pairs and returns an empty string.
+
+        Parameters
+        ----------
+        show_round : bool, default: True
+            Display marking round numbers instead of X marks.
+
+        Returns
+        -------
+        str
+            Triangular table, without a terminal newline.
+
+        Complexity
+        ----------
+        Pair analysis costs O(|Q|² * |Sigma| + V + |Q| log |Q|)
+        expected time and O(|Q|² * |Sigma| + M) space. Formatting adds
+        O(R) time and space for R output characters, including state
+        labels; Q is states, Sigma the alphabet, V/M upstream completion
+        and validation costs. No source mutation or cache is introduced.
+
+        References
+        ----------
+        Mature MinimizationMixin pair-table description; M3 prompt's
+        exact ASCII example; ADR-0023.
+        """
+        source = cast(DFA, self)
+        ordered = sorted(source.states, key=_pair_order_key)
+        if len(ordered) < 2:
+            return ""
+        table = self.pair_table()
+        labels = [str(state) for state in ordered]
+        row_width = max(map(len, labels))
+        cell_width = max(
+            1, *(len(label) for label in labels[:-1]),
+            *(len(str(round_number)) for round_number in table.values()
+              if round_number is not None),
+        )
+        header = " " * row_width + " ".join(
+            label.rjust(cell_width) for label in labels[:-1]
+        )
+        rows = [header]
+        for index, state in enumerate(ordered[1:], 1):
+            cells: list[str] = []
+            for previous in ordered[:index]:
+                round_number = table[frozenset((previous, state))]
+                token = (
+                    str(round_number) if show_round else "X"
+                ) if round_number is not None else "."
+                cells.append(token.rjust(cell_width))
+            rows.append(labels[index].rjust(row_width) + " " + " ".join(cells))
+        return "\n".join(rows)
+
+    def print_pair_table(self, show_round: bool = True) -> None:
+        """Print exactly the triangular view followed by one newline.
+
+        Parameters
+        ----------
+        show_round : bool, default: True
+            Display marking rounds rather than X marks.
+
+        Returns
+        -------
+        None
+            The table is written to standard output.
+
+        Complexity
+        ----------
+        O(|Q|² * |Sigma| + V + |Q| log |Q| + R) expected time and
+        O(|Q|² * |Sigma| + M + R) space, delegated to pair_table_str.
+        Q is states, Sigma the alphabet, V/M upstream completion and
+        validation costs, and R the output length. Printing adds O(R)
+        output work. The DFA is unchanged.
+
+        References
+        ----------
+        Mature MinimizationMixin print_pair_table; ADR-0023.
+        """
+        print(self.pair_table_str(show_round=show_round))
 
     def equivalence_classes(self) -> list[frozenset[FAStateT]]:
         """Partition all DFA states by Myhill–Nerode equivalence.
