@@ -43,14 +43,21 @@ class _VisualGraph:
     initial_id: str
 
 
-def _visual_graph(automaton: _VisualSource) -> _VisualGraph:
-    """Assign safe IDs, then collect actual edges once from upstream."""
+def _visual_state_ids(automaton: _VisualSource) -> dict[FAStateT, str]:
+    """Assign the stable node IDs shared by DOT and DFA video frames."""
     initial = automaton.initial_state
     states = [initial, *sorted(
         automaton.states - {initial},
         key=lambda state: (type(state).__module__, type(state).__qualname__, repr(state)),
     )]
-    ids = {state: f"s{index}" for index, state in enumerate(states)}
+    return {state: f"s{index}" for index, state in enumerate(states)}
+
+
+def _visual_graph(automaton: _VisualSource) -> _VisualGraph:
+    """Assign safe IDs, then collect actual edges once from upstream."""
+    ids = _visual_state_ids(automaton)
+    states = list(ids)
+    initial = automaton.initial_state
     nodes = tuple(
         (ids[state], str(state), state in automaton.final_states)
         for state in states

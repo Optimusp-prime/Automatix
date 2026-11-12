@@ -4,9 +4,20 @@ from __future__ import annotations
 
 import html
 import json
-from typing import Protocol
+import math
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Protocol, cast
 
 from automata.fa.fa import FAStateT
+
+from automata_extensions.fa.fa_mixins.visualisation import _visual_state_ids
+
+if TYPE_CHECKING:
+    from automata_extensions.fa.dfa import ExtendedDFA
 
 
 class _AnimationSource(Protocol):
@@ -100,6 +111,20 @@ _TAIL = """
 """
 
 
+def _find_ffmpeg() -> str | None:
+    """Find optional FFmpeg on PATH, then beside the active Python environment."""
+    found = shutil.which("ffmpeg")
+    if found is not None:
+        return found
+    environment = Path(sys.executable).parent
+    candidates = (
+        environment / "ffmpeg.exe",
+        environment / "Scripts" / "ffmpeg.exe",
+        environment / "Library" / "bin" / "ffmpeg.exe",
+    ) if sys.platform.startswith("win") else (environment / "ffmpeg",)
+    return next((str(path) for path in candidates if path.is_file()), None)
+
+
 class AnimationMixin:
     """Animate one DFA execution as portable HTML."""
 
@@ -168,3 +193,119 @@ class AnimationMixin:
             '</div></main>'
         )
         return _HEAD + markup + _TAIL
+
+    def export_animation_video(
+        self,
+        word: str,
+        filename: str | Path,
+        *,
+        fps: float = 1.0,
+        render_fps: int = 30,
+    ) -> Path:
+        """Export a smoothly animated DFA execution as a 1280x720 MP4.
+
+        The verified trace and DOT source provide the logical execution and
+        real graph. Graphviz computes one ``plain`` layout, including curved
+        edges and self-loops. A 30-fps (by default) raster timeline moves a
+        marker along each spline, highlights the active state and word
+        symbol, then shows the acceptance result. ``fps`` retains its M11
+        meaning of logical steps per second; ``render_fps`` is the encoded
+        frame rate. An empty word has an initial hold and final result.
+        A missing transition leaves the last reached state visible and
+        indicates the offending symbol without adding a sink.
+
+        Frames and the encoded H.264 MP4 are temporary until encoding
+        succeeds; the existing destination is then replaced. The parent
+        directory must already exist. FFmpeg is optional and looked up
+        only on invocation. Neither the DFA nor HTML ``animate()`` changes.
+
+        Parameters
+        ----------
+        word : str
+            Word to execute, including the empty word.
+        filename : str | Path
+            Destination ending in .mp4, with an existing parent directory.
+        fps : float, default: 1.0
+            Positive, finite logical execution steps per second.
+        render_fps : int, default: 30
+            Positive integer encoded video frames per second. Steps faster
+            than this rate cannot show multiple intermediate frames.
+
+        Returns
+        -------
+        Path
+            Path of the completed MP4 file.
+
+        Raises
+        ------
+        ValueError
+            If fps or render_fps is invalid, or the suffix is not .mp4.
+        FileNotFoundError
+            If the destination parent does not exist.
+        RuntimeError
+            If optional FFmpeg is absent, encoding fails, or no MP4 is made.
+        graphviz.ExecutableNotFound
+            If Graphviz dot is unavailable during frame rendering.
+
+        Complexity
+        ----------
+        For n = len(word), r = render_fps and
+        s = max(1, round(r / fps)), the DFA trace costs O(n).
+        Graphviz lays out Q states and E edges once; its cost is external.
+        At most O(r + n*s) raster frames are composed. Each frame
+        copies a fixed 1280x720 canvas and may inspect at most n word
+        symbols; Graphviz spline sampling is shared. FFmpeg time depends on
+        frame count and content. Temporary disk space is the sum of all
+        PNGs and the encoded MP4, cleaned even on failure.
+
+        References
+        ----------
+        Automatix M11 and its visual redesign; primary #16 (trace) and
+        #40–#41 (Graphviz); ADR-0027.
+        """
+        if not math.isfinite(fps) or fps <= 0:
+            raise ValueError("fps must be finite and strictly positive")
+        if type(render_fps) is not int or render_fps <= 0:
+            raise ValueError("render_fps must be a strictly positive integer")
+        output = Path(filename)
+        if output.suffix.lower() != ".mp4":
+            raise ValueError("video filename must end in .mp4")
+        if not output.parent.is_dir():
+            raise FileNotFoundError(f"destination directory does not exist: {output.parent}")
+        ffmpeg = _find_ffmpeg()
+        if ffmpeg is None:
+            raise RuntimeError("FFmpeg is required to export an MP4 video")
+
+        source = cast("ExtendedDFA", self)
+        trace = source.execution_trace(word)
+        accepted = source.accepts(word)
+        ids = _visual_state_ids(source)
+        base_dot = source.dot()
+
+        with TemporaryDirectory(prefix=".automatix-video-", dir=output.parent) as folder:
+            temporary = Path(folder)
+            from automata_extensions.fa.dfa_mixins.animation_video import (
+                write_video_frames,
+            )
+
+            frame_count = write_video_frames(
+                base_dot, trace, word, accepted, source.transitions, ids,
+                fps, render_fps, temporary,
+            )
+
+            encoded = temporary / "animation.mp4"
+            command = [
+                ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+                "-framerate", str(render_fps),
+                "-i", str(temporary / "frame_%06d.png"),
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart", "-frames:v", str(frame_count),
+                str(encoded),
+            ]
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            if result.returncode:
+                raise RuntimeError(f"FFmpeg failed to encode MP4: {result.stderr.strip()}")
+            if not encoded.is_file() or encoded.stat().st_size == 0:
+                raise RuntimeError("FFmpeg did not produce a nonempty MP4 file")
+            encoded.replace(output)
+        return output

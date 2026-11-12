@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import AbstractSet
+from typing import TYPE_CHECKING, AbstractSet
 
 from automata.base.exceptions import InvalidRegexError
 
 from automata_extensions.regex import _ast
+
+if TYPE_CHECKING:
+    from automata_extensions.fa import ExtendedDFA
 
 
 _UNSUPPORTED = frozenset("+?&^.[]{}\\")
@@ -201,6 +204,54 @@ class Regex:
         object.__setattr__(result, "_root", _ast.derivative(self._root, symbol))
         object.__setattr__(result, "_symbols", self._symbols)
         return result
+
+    def to_dfa(self) -> ExtendedDFA:
+        """Construct a complete DFA by exploring normalized derivatives.
+
+        Breadth-first expansion computes ``state.derivative(symbol)`` for
+        each reachable regex and each character of this expression's stored
+        alphabet. A state is final exactly when its expression is nullable.
+        The empty-language derivative is a rejecting sink when reachable.
+        No Thompson construction, subset conversion or language-equivalence
+        oracle is used. The source Regex remains immutable and unchanged.
+
+        Returns
+        -------
+        ExtendedDFA
+            Fresh complete DFA whose states are immutable Regex values for
+            normalized derivatives. Union is canonical modulo associativity,
+            commutativity and idempotence; basic epsilon/empty identities and
+            concatenation associativity also apply. Syntactically different
+            but language-equivalent states can remain: minimality is not
+            promised. Existing ``minimize()`` may be used afterwards.
+
+        Raises
+        ------
+        RecursionError
+            If recursive AST operations exceed Python's recursion limit.
+            Accepted syntax/alphabet are the existing Regex constructor's
+            classical, single-character contracts; no new parser is added.
+
+        Complexity
+        ----------
+        For R discovered normalized states and s alphabet symbols, the graph
+        has R*s edges. Total time is O(s log s + R*s + C + V), where C includes
+        all derivative, normalization, structural ordering/hashing/equality
+        and nullability work, and V is DFA construction/validation. Space is
+        O(R*(s+1) + S + W + V_space), where S is retained AST storage and W
+        bounds temporary AST/normalization workspace. R and AST sizes can
+        grow exponentially in input size; C is not a constant per edge.
+        No persistent cache is populated.
+
+        References
+        ----------
+        INF302 Enonce_TD.v04, exercise 51; ADR-0029. Brzozowski (1964),
+        Derivatives of Regular Expressions; Owens, Reppy and Turon (2009),
+        Regular-expression derivatives re-examined, section 4.1.
+        """
+        from automata_extensions.regex._derivative_dfa import _build_derivative_dfa
+
+        return _build_derivative_dfa(self)
 
     def __str__(self) -> str:
         """Render the AST for display; ``∅`` is not a reparsable input token.

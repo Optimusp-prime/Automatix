@@ -12,6 +12,7 @@ from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.morphism import MorphismMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
+from automata_extensions.fa.nfa_mixins.accepting_runs import AcceptingRunsMixin
 from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
 from automata_extensions.fa.nfa_mixins.elimination import EliminationMixin
 from automata_extensions.fa.nfa_mixins.epsilon import EpsilonMixin
@@ -23,6 +24,7 @@ from automata_extensions.fa.nfa_mixins.thompson import ThompsonMixin
 
 
 class ExtendedNFA(
+    AcceptingRunsMixin,
     NFAEquationSystemMixin, ThompsonMixin, NFAGrammarMixin, GrammarMixin, BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
     DeterminizationMixin,
     EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, MorphismMixin, ExtendedFA, NFA

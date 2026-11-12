@@ -17,10 +17,10 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: Mature-reference compatibility backlog M1–M10
+Current feature: TD51 — direct derivative DFA construction VERIFIED
 
-Next planned feature: Submission commit after user review;
-professor requirements #1–#62 and supplemental M1–M10 remain VERIFIED
+Next planned feature: Submission review; professor requirements #1–#62
+and supplemental M1–M11 remain VERIFIED
 
 Current phase: Primary and supplemental requirements verified
 
@@ -2883,3 +2883,84 @@ et PDF dans un répertoire temporaire. `git diff --check` est propre.
 L'espacement M3/M4 suit la chaîne exacte explicitement prescrite dans
 la demande ; l'écart typographique du PDF est conservé dans ADR-0023.
 Les exigences primaires #1–#62 restent toutes VERIFIED.
+
+## M11 — Export vidéo d'une exécution
+
+**Fonction M11 et refonte visuelle : VERIFIED.**
+L'API devient `ExtendedDFA.export_animation_video(word: str,
+filename: str | Path, *, fps: float = 1.0,
+render_fps: int = 30) -> Path`. Le paramètre `fps` garde son sens M11 de
+nombre d'étapes logiques par seconde ; `render_fps` contrôle seulement le
+nombre d'images MP4 par seconde. `animate()` garde son HTML autonome.
+
+La trace provient toujours de `execution_trace()` (#16) et `accepts()` ; le
+DOT vérifié (#40) conserve les vrais états et transitions. Graphviz calcule
+**une seule fois** un layout `plain` contenant centres, labels et points de
+contrôle des courbes, y compris les boucles. Le renderer privé dans
+`dfa_mixins/animation_video.py` échantillonne chaque spline selon la
+distance parcourue et y déplace un petit marqueur. Une timeline distincte
+produit une pause initiale, un mouvement puis une arrivée/pulsation pour
+chaque symbole et une pause finale. La vue 1280×720 affiche le graphe stable,
+les états finaux en double cercle, la flèche initiale, les étiquettes,
+les cartes du mot (lu/courant/à lire) et un badge textuel et pictographique
+ACCEPTÉ ou REFUSÉ. Le mot vide montre ε, puis le verdict. Un DFA partiel
+s'arrête à la première transition absente en conservant le dernier état
+réel et en indiquant le symbole en défaut, sans état puits implicite.
+
+Pillow, déclaré dans `pyproject.toml`, compose des images à 2× la taille
+cible avant réduction Lanczos. Aucun asset ni police n'est embarqué ; une
+police sans empattement du système est choisie avec repli. FFmpeg reste
+un exécutable optionnel, recherché seulement lors de l'export (PATH, puis
+environnement Python actif). Les PNG et le MP4 intermédiaire restent dans
+un `TemporaryDirectory` sous le dossier de destination et sont nettoyés en
+cas d'échec ; le fichier demandé n'est remplacé qu'après encodage réussi.
+
+Pour n symboles, r = `render_fps`, f = `fps` et
+s = max(1, round(r/f)), la trace DFA coûte O(n) ; Graphviz effectue un seul
+layout externe. La timeline produit O(r + ns) images ; chaque composition
+copie un canevas fixe et dessine
+le mot visible, la courbe active et le marqueur. Le coût Graphviz et FFmpeg
+dépend du graphe et des images. La mémoire contient une frame 2× et le
+layout ; le disque temporaire contient les PNG et le MP4. Voir la docstring
+et [ADR-0027](decisions/ADR-0027-stable-video-layout-and-timeline.md).
+
+**Validation initiale M11 :** 1295 passed, 0 skipped avant refonte.
+**Tests de refonte :** `tests/fa/test_animation_video.py` et
+`tests/fa/test_animation_video_render.py` couvrent API, géométrie stable,
+timeline, boucle, mot vide, acceptation/refus, DFA partiel, immutabilité,
+FFmpeg et vrais MP4. Les 98 tests ciblés et voisins et la suite entière
+(1302 passed, 0 skipped) passent ; mypy strict sur 117 fichiers et
+installation editable réussissent. Le MP4 de l'automate A lisant `1010`
+a été inspecté à quatre instants : 159 frames H.264, 30 fps, 5,3 s,
+1280×720, 66 258 octets. Aucun chevauchement ni glyphe manquant ; le
+graphe reste fixe, le marqueur avance sur la transition et le verdict
+reste lisible. Les exigences #1–#62 et M1–M10 restent VERIFIED.
+
+
+## TD38 — Accepting runs of epsilon-free NFAs
+
+Status: VERIFIED. Supplemental TD exercise 38; not a renumbering of #1–#62.
+
+Public API: `ExtendedNFA.accepting_runs(word)` and
+`ExtendedNFA.count_accepting_runs(word)` in `AcceptingRunsMixin`.
+Individual runs retain their entire state sequence; counting preserves
+branch multiplicity after merges. Actual epsilon edges are rejected.
+
+
+Tests: `tests/fa/test_accepting_runs.py` (47 targeted cases). Full suite: 1349 passed; no skips. Strict typing passed for all production and test modules. The original #1–#62 and M1–M11 statuses are unchanged.
+
+Verified on 2026-10-16 with automata-lib 9.2.0 / Python 3.11. Enumeration uses lazy iterative DFS and immutable state-sequence tuples; counting uses two layers of exact integer multiplicities. Validation covers the exercise-38 occurrence and product identities, independent state-sequence enumeration, long inputs, empty cases, merges, heterogeneous states, eager epsilon rejection and immutability. See [usage](ACCEPTING_RUNS.md) and [ADR-0028](decisions/ADR-0028-epsilon-free-accepting-runs.md).
+
+
+## TD51 — DFA construction by regex derivatives
+
+Status: VERIFIED. Supplemental TD exercise 51, complementing #49 and #51.
+
+API: `Regex.to_dfa() -> ExtendedDFA`. Reachable states represent
+normalized derivatives. Complete transitions over the stored alphabet;
+nullable derivatives are accepting. No Thompson or subset conversion.
+
+
+Tests: `tests/regex/test_derivative_dfa.py` (32 new cases). Full suite: 1381 passed, 0 skipped. Strict typing: 121 production and test files passed.
+
+Verified on 2026-10-16 with automata-lib 9.2.0 / Python 3.11. The TD51 expressions match independent automata-lib and existing Thompson construction. States are immutable Regex derivatives, with complete reachable transitions and nullable final states. No intermediate NFA or subset construction is used. Prior feature statuses and user edits are retained. See [usage](DERIVATIVE_DFA.md) and [ADR-0029](decisions/ADR-0029-derivative-dfa-normal-forms.md).

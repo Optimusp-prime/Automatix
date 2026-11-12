@@ -43,6 +43,9 @@ mark its status Superseded with a link to the replacement once accepted.
 | [ADR-0024](ADR-0024-bounded-regex-order-search.md) | Accepted | Bounded regex order search |
 | [ADR-0025](ADR-0025-cached-method-runtime-patch.md) | Accepted | Cached-method runtime patch |
 | [ADR-0026](ADR-0026-subprocess-diagram-rendering.md) | Accepted | Graphviz subprocess renderer |
+| [ADR-0027](ADR-0027-stable-video-layout-and-timeline.md) | Accepted | Stable video layout and independent render cadence |
+| [ADR-0028](ADR-0028-epsilon-free-accepting-runs.md) | Accepted | Lazy accepting runs and exact counting for epsilon-free NFAs |
+| [ADR-0029](ADR-0029-derivative-dfa-normal-forms.md) | Accepted | Complete DFA from canonical regex derivatives |
 
 ## Template
 
