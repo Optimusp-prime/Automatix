@@ -5,13 +5,15 @@ from __future__ import annotations
 import math
 import os
 import shlex
-from dataclasses import dataclass
+import subprocess
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
 from automata.fa.fa import FAStateT
-from graphviz import Source
 from PIL import Image, ImageColor, ImageDraw, ImageFont
+
+from automata_extensions.fa.dfa_mixins.animation import _find_video_executable
 
 
 _SIZE = (1280, 720)
@@ -104,6 +106,44 @@ def _curve_samples(points: Sequence[tuple[float, float]]) -> tuple[tuple[float, 
     return tuple(sampled)
 
 
+def _attach_tip(
+    samples: tuple[tuple[float, float], ...], node: _Node,
+) -> tuple[tuple[float, float], ...]:
+    """End the incoming tangent two output pixels outside the target ellipse.
+
+    Plain Graphviz splines exclude their arrowheads. Intersect the final
+    tangent with the expanded target outline instead of using that shortened
+    endpoint as our arrow tip. Work once per edge, in O(number of samples).
+    """
+    if len(samples) < 2:
+        return samples
+    rx, ry = node.rx + 2 * _SCALE, node.ry + 2 * _SCALE
+    x, y = samples[-1]
+    previous = next((p for p in reversed(samples[:-1]) if p != (x, y)), None)
+    if previous is None:
+        return samples
+    dx, dy = x - previous[0], y - previous[1]
+    px, py = x - node.x, y - node.y
+    a = (dx / rx) ** 2 + (dy / ry) ** 2
+    b = 2 * (px * dx / rx**2 + py * dy / ry**2)
+    c = (px / rx) ** 2 + (py / ry) ** 2 - 1
+    discriminant = b * b - 4 * a * c
+    if discriminant >= 0:
+        root = math.sqrt(discriminant)
+        t = min(((-b - root) / (2 * a), (-b + root) / (2 * a)), key=abs)
+        tip = (x + t * dx, y + t * dy)
+    else:
+        # Rounded plain coordinates can make a near-tangent ray miss.
+        radius = math.hypot(px / rx, py / ry)
+        if radius == 0:
+            return samples
+        tip = (node.x + px / radius, node.y + py / radius)
+    prefix = list(samples)
+    while prefix and ((prefix[-1][0] - node.x) / rx) ** 2 + ((prefix[-1][1] - node.y) / ry) ** 2 <= 1:
+        prefix.pop()
+    return (*prefix, tip) if prefix else (samples[0], tip)
+
+
 def _layout_from_plain(plain: str) -> _Layout:
     """Map one Graphviz plain layout into the fixed graph panel."""
     rows = [shlex.split(line.strip()) for line in plain.splitlines() if line.strip()]
@@ -145,12 +185,27 @@ def _layout_from_plain(plain: str) -> _Layout:
                 row[1], row[2], label, coordinates, label_position,
                 _curve_samples(coordinates),
             ))
-    return _Layout(nodes, tuple(edges))
+    return _Layout(nodes, tuple(
+        replace(edge, samples=_attach_tip(edge.samples, nodes[edge.target]))
+        if edge.target in nodes else edge for edge in edges
+    ))
 
 
-def _layout_once(dot: str) -> _Layout:
+def _layout_once(dot: str, env_path: Path | None = None) -> _Layout:
     """Ask Graphviz for one immutable set of nodes and B-splines."""
-    return _layout_from_plain(Source(dot).pipe(format="plain").decode("utf-8"))
+    executable = _find_video_executable("dot", env_path)
+    if executable is None:
+        location = f"the selected environment ({env_path})" if env_path is not None else "the active Python/Conda environment or on PATH"
+        raise RuntimeError(
+            "Graphviz (dot) is required to export an MP4 video. "
+            f"Install Graphviz in {location}."
+        )
+    result = subprocess.run(
+        [executable, "-Tplain"], input=dot, encoding="utf-8",
+        capture_output=True, check=True,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    )
+    return _layout_from_plain(result.stdout)
 
 
 def _timeline(
@@ -440,9 +495,12 @@ def write_video_frames(
     fps: float,
     render_fps: int,
     folder: Path,
+    *,
+    env_path: Path | None = None,
 ) -> int:
     """Render a deterministic timeline from one Graphviz layout to PNGs."""
-    renderer = _FrameRenderer(_layout_once(dot), word, accepted)
+    layout = _layout_once(dot) if env_path is None else _layout_once(dot, env_path)
+    renderer = _FrameRenderer(layout, word, accepted)
     count = 0
     for count, moment in enumerate(
         _timeline(trace, word, transitions, identifiers, fps, render_fps), 1

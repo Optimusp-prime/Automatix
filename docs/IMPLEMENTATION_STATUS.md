@@ -17,7 +17,7 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: M11 — vidéo « Fil de lecture » VERIFIED (2026-11-16)
+Current feature: M11 — environnement vidéo configurable VERIFIED (2026-11-17)
 
 Next planned feature: B01 — transition tables, then B02 — pedagogical traces.
 See [TD backlog B01–B16](TD_BACKLOG.md) for agreed remaining work.
@@ -2888,11 +2888,40 @@ Les exigences primaires #1–#62 restent toutes VERIFIED.
 ## M11 — Export vidéo d'une exécution
 
 **Fonction M11 et rendu « Fil de lecture » : VERIFIED (2026-11-16).**
+
+Correctif du 16 novembre 2026 : les courbes `plain` réservaient un espace
+pour les pointes Graphviz, mais le rendu Pillow plaçait ses propres pointes
+avant cet espace. La tangente finale est maintenant raccordée au contour
+extérieur de la destination avec environ 2 pixels de marge, pour flèches
+initiales, transitions et boucles. Géométrie calculée une fois, partagée par
+la scène et le tracé animé ; aucune modification de l'API ou de l'automate.
+Validation : 3 nouveaux cas de régression, 1393 tests réussis, mypy strict
+sur 121 fichiers et image de contrôle inspectée depuis le projet principal.
+
 L'API devient `ExtendedDFA.export_animation_video(word: str,
-filename: str | Path, *, fps: float = 1.0,
-render_fps: int = 30) -> Path`. Le paramètre `fps` garde son sens M11 de
+filename: str | Path = "animation.mp4", *, fps: float = 1.0,
+render_fps: int = 30, env_path: str | Path | None = None) -> Path`.
+Le paramètre `fps` garde son sens M11 de
 nombre d'étapes logiques par seconde ; `render_fps` contrôle seulement le
 nombre d'images MP4 par seconde. `animate()` garde son HTML autonome.
+
+L'export découvre `dot` et `ffmpeg` sur le PATH ou dans l'environnement du
+Python courant, sans configuration manuelle ni mutation globale. La destination
+par défaut est `animation.mp4` dans le dossier courant ; un dossier existant
+ou un chemin de fichier personnalisé est également accepté. Voir
+[ADR-0031](decisions/ADR-0031-video-executable-discovery.md).
+Depuis le 17 novembre 2026, `env_path` permet de fournir une racine
+d'environnement explicite. Les deux outils sont alors recherchés exclusivement
+dans ce dossier, sans repli silencieux vers le PATH ou l'environnement courant.
+Les chemins relatifs et `~` sont résolus, et le dossier est validé avant rendu.
+Le noyau Python ne change pas. La valeur `None` conserve la découverte automatique.
+Validation `env_path` : 4 cas ajoutés (recherche exclusive des deux outils,
+dossier invalide et export réel avec interpréteur courant simulé ailleurs).
+Suite complète : 1401 passed, 0 skipped ; mypy strict : 121 fichiers sans erreur.
+Validation : trois exports réels avec PATH vide (destination par défaut,
+dossier avec espaces, fichier explicite), environnement inchangé et erreur
+explicite si Graphviz manque. Suite complète : 1397 passed, 0 skipped ;
+mypy strict : 121 fichiers sans erreur ; site MkDocs construit en mode strict.
 
 La trace provient toujours de `execution_trace()` (#16) et `accepts()` ; le
 DOT vérifié (#40) conserve les vrais états et transitions. Graphviz calcule

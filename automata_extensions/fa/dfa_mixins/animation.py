@@ -111,18 +111,24 @@ _TAIL = """
 """
 
 
-def _find_ffmpeg() -> str | None:
-    """Find optional FFmpeg on PATH, then beside the active Python environment."""
-    found = shutil.which("ffmpeg")
-    if found is not None:
-        return found
-    environment = Path(sys.executable).parent
+def _find_video_executable(name: str, env_path: Path | None = None) -> str | None:
+    """Search the selected environment exclusively, or use default discovery."""
+    if env_path is None:
+        found = shutil.which(name)
+        if found is not None:
+            return found
+    environment = env_path if env_path is not None else Path(sys.executable).parent
     candidates = (
-        environment / "ffmpeg.exe",
-        environment / "Scripts" / "ffmpeg.exe",
-        environment / "Library" / "bin" / "ffmpeg.exe",
-    ) if sys.platform.startswith("win") else (environment / "ffmpeg",)
+        environment / f"{name}.exe",
+        environment / "Scripts" / f"{name}.exe",
+        environment / "Library" / "bin" / f"{name}.exe",
+    ) if sys.platform.startswith("win") else (environment / "bin" / name, environment / name)
     return next((str(path) for path in candidates if path.is_file()), None)
+
+
+def _find_ffmpeg(env_path: Path | None = None) -> str | None:
+    """Find FFmpeg without changing the notebook's process environment."""
+    return _find_video_executable("ffmpeg", env_path)
 
 
 class AnimationMixin:
@@ -197,10 +203,11 @@ class AnimationMixin:
     def export_animation_video(
         self,
         word: str,
-        filename: str | Path,
+        filename: str | Path = "animation.mp4",
         *,
         fps: float = 1.0,
         render_fps: int = 30,
+        env_path: str | Path | None = None,
     ) -> Path:
         """Export a smoothly animated DFA execution as a 1280x720 MP4.
 
@@ -220,20 +227,30 @@ class AnimationMixin:
 
         Frames and the encoded H.264 MP4 are temporary until encoding
         succeeds; the existing destination is then replaced. The parent
-        directory must already exist. FFmpeg is optional and looked up
-        only on invocation. Neither the DFA nor HTML ``animate()`` changes.
+        directory must already exist. Graphviz and FFmpeg are discovered on
+        PATH or inside the running Python environment, without changing
+        os.environ or Graphviz's global configuration. Neither the DFA nor
+        HTML ``animate()`` changes.
 
         Parameters
         ----------
         word : str
             Word to execute, including the empty word.
-        filename : str | Path
+        filename : str | Path, default: "animation.mp4"
             Destination ending in .mp4, with an existing parent directory.
+            Defaults to animation.mp4 in the current working directory.
+            An existing directory selects animation.mp4 inside that directory.
         fps : float, default: 1.0
             Positive, finite logical execution steps per second.
         render_fps : int, default: 30
             Positive integer encoded video frames per second. Steps faster
             than this rate cannot show multiple intermediate frames.
+        env_path : str | Path | None, default: None
+            Optional root directory of the environment containing Graphviz
+            and FFmpeg. When supplied, both tools must be in that environment;
+            no fallback to PATH or the current environment occurs. This selects
+            external tools, not a different Python interpreter or notebook kernel.
+            None preserves automatic discovery from PATH and current Python.
 
         Returns
         -------
@@ -245,11 +262,11 @@ class AnimationMixin:
         ValueError
             If fps or render_fps is invalid, or the suffix is not .mp4.
         FileNotFoundError
-            If the destination parent does not exist.
+            If the destination parent or selected environment does not exist.
         RuntimeError
-            If optional FFmpeg is absent, encoding fails, or no MP4 is made.
-        graphviz.ExecutableNotFound
-            If Graphviz dot is unavailable during frame rendering.
+            If Graphviz or FFmpeg is absent, encoding fails, or no MP4 is made.
+        subprocess.CalledProcessError
+            If Graphviz fails to compute the layout.
 
         Complexity
         ----------
@@ -272,13 +289,19 @@ class AnimationMixin:
         if type(render_fps) is not int or render_fps <= 0:
             raise ValueError("render_fps must be a strictly positive integer")
         output = Path(filename)
+        if output.is_dir():
+            output = output / "animation.mp4"
         if output.suffix.lower() != ".mp4":
             raise ValueError("video filename must end in .mp4")
         if not output.parent.is_dir():
             raise FileNotFoundError(f"destination directory does not exist: {output.parent}")
-        ffmpeg = _find_ffmpeg()
+        environment = Path(env_path).expanduser().resolve() if env_path is not None else None
+        if environment is not None and not environment.is_dir():
+            raise FileNotFoundError(f"environment directory does not exist: {environment}")
+        ffmpeg = _find_ffmpeg(environment)
         if ffmpeg is None:
-            raise RuntimeError("FFmpeg is required to export an MP4 video")
+            location = f" in the selected environment: {environment}" if environment is not None else ""
+            raise RuntimeError(f"FFmpeg is required to export an MP4 video{location}")
 
         source = cast("ExtendedDFA", self)
         trace = source.execution_trace(word)
@@ -295,6 +318,7 @@ class AnimationMixin:
             frame_count = write_video_frames(
                 base_dot, trace, word, accepted, source.transitions, ids,
                 fps, render_fps, temporary,
+                **({"env_path": environment} if environment is not None else {}),
             )
 
             encoded = temporary / "animation.mp4"

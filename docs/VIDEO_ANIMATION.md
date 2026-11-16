@@ -3,6 +3,33 @@
 `ExtendedDFA.export_animation_video()` produit une vidéo MP4 1280×720 au rendu
 « Fil de lecture ». Le graphe reste fixe pendant toute la lecture.
 
+Une fois l'automate créé, aucun `import os` ni ajout au `PATH` n'est nécessaire
+si Graphviz et FFmpeg sont installés dans l'environnement Python utilisé :
+
+```python
+A.export_animation_video("101010")  # animation.mp4 dans le dossier courant
+A.export_animation_video("101010", "ma_video.mp4")
+A.export_animation_video("101010", "videos")  # dossier existant : videos/animation.mp4
+```
+
+Le dossier courant est celui du noyau du notebook ou du processus Python.
+Un chemin absolu peut également être fourni. Les dossiers ne sont pas créés
+automatiquement ; un fichier existant est remplacé après un export réussi.
+
+Pour choisir l'environnement contenant Graphviz et FFmpeg :
+
+```python
+A.export_animation_video("101010", env_path=r"C:\mes_envs\automate")
+A.export_animation_video("101010", "ma_video.mp4", env_path="./.venv")
+```
+
+`env_path=None` (valeur par défaut) conserve la découverte automatique actuelle.
+Le chemin fourni est la **racine du dossier d'environnement**, pas `python.exe`
+ni `Library/bin`. Les chemins relatifs et `~` sont acceptés. Avec un chemin
+explicite, les deux outils doivent être présents dans cet environnement ; aucun
+autre environnement n'est utilisé en remplacement. Cette option choisit les
+exécutables externes, sans changer le noyau Python du notebook ni son `PATH`.
+
 ```python
 from automata_extensions.fa import ExtendedDFA
 
@@ -24,6 +51,8 @@ automate.export_animation_video("110101", "transition_absente.mp4", fps=0.8)
 - Symboles consommés estompés à 25 % ; légère pulsation à la consommation.
 - Tracé progressif de la transition, départ et arrivée en douceur, fondu entre
   états et halo léger. Doubles cercles et flèche initiale conservent leur sens.
+  Les pointes s'arrêtent à environ deux pixels du contour extérieur de l'état
+  d'arrivée, y compris pour la flèche initiale et les boucles.
 - Verdict final **Accepté** ou **Refusé**, avec coche/croix.
 - Transition absente : symbole bloquant et suffixe non lu à 100 % d'opacité,
   traits inférieurs rouges ; arrêt au dernier état réel, sans état puits ajouté.
@@ -42,6 +71,11 @@ ne peuvent pas tous être représentés.
 Graphviz (`dot`) et FFmpeg sont nécessaires à l'export ; Pillow est une dépendance
 Python du projet. Le répertoire de destination doit exister. L'automate n'est pas
 modifié, et un fichier existant n'est remplacé qu'après un encodage réussi.
+Les exécutables sont recherchés sur le `PATH`, puis à côté du Python courant
+(y compris `Scripts` et `Library/bin` sous Windows/Conda, ou `bin` sous Linux/macOS).
+Aucun chemin propre
+à une machine n'est inscrit dans le code, et le `PATH` du processus n'est pas
+modifié. Si un outil est réellement absent, l'export indique lequel installer.
 
 Depuis la racine du dépôt, générer les trois exemples avec :
 

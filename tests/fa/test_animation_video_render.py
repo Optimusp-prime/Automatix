@@ -53,6 +53,18 @@ def test_plain_layout_keeps_nodes_edges_and_loop_geometry() -> None:
     assert early != late
 
 
+@pytest.mark.parametrize("source,target", [("__start__", "s0"), ("s0", "s1"), ("s1", "s1")])
+def test_arrow_tip_reaches_destination_outline(source: str, target: str) -> None:
+    layout = _layout_from_plain(_PLAIN)
+    edge = next(e for e in layout.edges if e.source == source and e.target == target)
+    node = layout.nodes[target]
+    x, y = edge.samples[-1]
+    # All three fixtures have circular targets. Leave only two output pixels
+    # (four supersampled pixels) between tip and outer state boundary.
+    distance = ((x - node.x) ** 2 + (y - node.y) ** 2) ** 0.5
+    assert distance - node.rx == pytest.approx(4.0, abs=0.1)
+
+
 def test_timeline_has_motion_arrival_pulse_and_stable_states() -> None:
     identifiers = {"q0": "s0", "q1": "s1"}
     transitions = {"q0": {"a": "q1"}, "q1": {"b": "q1"}}
