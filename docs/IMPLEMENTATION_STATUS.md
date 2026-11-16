@@ -19,8 +19,9 @@ updated as part of every feature implementation.
 
 Current feature: TD51 — direct derivative DFA construction VERIFIED
 
-Next planned feature: Submission review; professor requirements #1–#62
-and supplemental M1–M11 remain VERIFIED
+Next planned feature: B01 — transition tables, then B02 — pedagogical traces.
+See [TD backlog B01–B16](TD_BACKLOG.md) for agreed remaining work.
+Professor requirements #1–#62, M1–M11, TD38 and TD51 remain VERIFIED.
 
 Current phase: Primary and supplemental requirements verified
 
