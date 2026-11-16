@@ -12,6 +12,7 @@ dependencies = ["automata-lib==9.2.0", "graphviz>=0.21,<1", "Pillow>=10,<13"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
+docs = ["mkdocs>=1.6,<2"]
 
 [tool.setuptools.packages.find]
 include = ["automata_extensions*"]

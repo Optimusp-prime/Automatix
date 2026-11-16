@@ -11,18 +11,17 @@ from typing import Iterator, Mapping, Sequence
 
 from automata.fa.fa import FAStateT
 from graphviz import Source
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 
 _SIZE = (1280, 720)
 _SCALE = 2  # Rasterize at 2x before a Lanczos downsample.
-_INK = "#223148"
-_MUTED = "#7D8CA1"
-_EDGE = "#AAB8C7"
-_ACCENT = "#158F86"
-_ACCENT_PALE = "#E4F4F0"
-_REJECT = "#C45D61"
-_REJECT_PALE = "#FCE9E9"
+_PAPER = "#FCFCFA"
+_INK = "#303638"
+_MUTED = "#9BA5A5"
+_EDGE = "#A7AFAF"
+_ACCENT = "#288C83"
+_REJECT = "#B95850"
 
 
 @dataclass(frozen=True)
@@ -69,6 +68,21 @@ class _Moment:
     pulse: float
     final: bool
     blocked_at: int | None
+    phase: float = 0.0
+
+
+def _ease(value: float) -> float:
+    """Quintic interpolation with zero speed and acceleration at both ends."""
+    t = min(1.0, max(0.0, value))
+    return t * t * t * (t * (t * 6 - 15) + 10)
+
+
+def _blend(foreground: str, background: str, opacity: float) -> str:
+    """Flatten a translucent color onto the video's opaque background."""
+    front, back = ImageColor.getrgb(foreground), ImageColor.getrgb(background)
+    alpha = min(1.0, max(0.0, opacity))
+    channels = [round(b + (f - b) * alpha) for f, b in zip(front[:3], back[:3])]
+    return "#" + "".join(f"{channel:02x}" for channel in channels)
 
 
 def _curve_samples(points: Sequence[tuple[float, float]]) -> tuple[tuple[float, float], ...]:
@@ -98,7 +112,7 @@ def _layout_from_plain(plain: str) -> _Layout:
     width, height = float(rows[0][2]), float(rows[0][3])
     if width <= 0 or height <= 0:
         raise ValueError("Graphviz returned an empty graph layout")
-    left, top, area_width, area_height = (105, 158, 1070, 345)
+    left, top, area_width, area_height = (85, 185, 1110, 440)
     scale = min(area_width / width, area_height / height) * _SCALE
     offset_x = (left + area_width / 2) * _SCALE - width * scale / 2
     offset_y = (top + area_height / 2) * _SCALE - height * scale / 2
@@ -151,7 +165,6 @@ def _timeline(
     initial_hold = max(1, round(render_fps * 0.4))
     final_hold = max(1, round(render_fps * 0.9))
     step_frames = max(1, round(render_fps / fps))
-    movement_frames = max(1, round(step_frames * 0.65))
     last_valid = trace[0]
     blocked_at: int | None = None
 
@@ -170,24 +183,23 @@ def _timeline(
         if not valid and blocked_at is None:
             blocked_at = index
         for frame in range(step_frames):
-            active: int | None
-            if frame < movement_frames:
-                progress = (frame + 1) / movement_frames
-                state_id = identifiers[last_valid]
-                pulse = 0.0
-                active = index
-            else:
-                progress = 1.0
-                state_id = identifiers[current] if valid else identifiers[last_valid]
-                pulse = 1.0 - (frame - movement_frames) / max(1, step_frames - movement_frames)
-                active = index + 1 if valid and index + 1 < len(word) else None
-            yield _Moment(index + 1, state_id, active, edge, progress,
-                          pulse if valid else 0.0, False, blocked_at)
+            phase = (frame + 1) / step_frames
+            arrived = valid and phase >= 0.93
+            state_id = identifiers[current] if arrived else identifiers[last_valid]
+            active = index + 1 if arrived else index
+            arrival = min(1.0, max(0.0, (phase - 0.67) / 0.33))
+            yield _Moment(
+                index + int(arrived), state_id,
+                active if active < len(word) else None, edge,
+                _ease((phase - 0.12) / 0.68),
+                math.sin(math.pi * arrival) if valid else 0.0,
+                False, blocked_at, phase,
+            )
         if not valid:
             break
         last_valid = current
 
-    completed = len(word) if blocked_at is None else blocked_at + 1
+    completed = len(word) if blocked_at is None else blocked_at
     for _ in range(final_hold):
         yield _Moment(completed, identifiers[last_valid], None, None,
                       0.0, 0.0, True, blocked_at)
@@ -281,29 +293,21 @@ class _FrameRenderer:
         self.layout = layout
         self.word = word
         self.accepted = accepted
-        self.title_font = _font(31, bold=True)
-        self.body_font = _font(18)
+        self.body_font = _font(21)
         self.small_font = _font(15)
-        self.node_font = _font(21, bold=True)
-        self.badge_font = _font(18, bold=True)
+        self.node_font = _font(23)
+        self.badge_font = _font(20)
+        self.symbol_fonts = {size: _font(size) for size in range(34, 38)}
         self.base = self._static_scene()
 
     def _static_scene(self) -> Image.Image:
-        image = Image.new("RGB", (_SIZE[0] * _SCALE, _SIZE[1] * _SCALE), "#F5F7FB")
+        image = Image.new("RGB", (_SIZE[0] * _SCALE, _SIZE[1] * _SCALE), _PAPER)
         draw = ImageDraw.Draw(image)
-        draw.text((70 * _SCALE, 37 * _SCALE), "Exécution de l'automate",
-                  font=self.title_font, fill=_INK)
-        draw.text((72 * _SCALE, 91 * _SCALE), "AUTOMATIX  ·  LECTURE PAS À PAS",
-                  font=self.small_font, fill=_MUTED)
-        draw.rounded_rectangle((59 * _SCALE, 130 * _SCALE,
-                                1221 * _SCALE, 541 * _SCALE),
-                               radius=22 * _SCALE, fill="white", outline="#E2E8F0",
-                               width=2 * _SCALE)
 
         for edge in self.layout.edges:
             if len(edge.samples) < 2:
                 continue
-            draw.line(edge.samples, fill=_EDGE, width=2 * _SCALE, joint="curve")
+            draw.line(edge.samples, fill=_EDGE, width=3, joint="curve")
             _arrow(draw, edge.samples, _EDGE)
             if edge.label is not None and edge.label_position is not None:
                 x, y = edge.label_position
@@ -312,66 +316,81 @@ class _FrameRenderer:
                 half_h = 15 * _SCALE
                 draw.rounded_rectangle((x - half_w, y - half_h,
                                         x + half_w, y + half_h),
-                                       radius=8 * _SCALE, fill="white")
+                                       radius=8 * _SCALE, fill=_PAPER)
                 _centered_text(draw, (x, y), edge.label, self.body_font, _INK)
 
         for node in self.layout.nodes.values():
             bounds = (node.x - node.rx, node.y - node.ry,
                       node.x + node.rx, node.y + node.ry)
-            draw.ellipse(bounds, fill="white", outline="#8799AB", width=2 * _SCALE)
+            draw.ellipse(bounds, fill=_PAPER, outline=_EDGE, width=3)
             if node.final:
                 inset = 5 * _SCALE
                 draw.ellipse((bounds[0] + inset, bounds[1] + inset,
                               bounds[2] - inset, bounds[3] - inset),
-                             outline="#8799AB", width=2 * _SCALE)
+                             outline=_EDGE, width=3)
             _centered_text(draw, (node.x, node.y), node.label,
                            self.node_font, _INK)
         return image
 
     def _word_strip(self, draw: ImageDraw.ImageDraw, moment: _Moment) -> None:
-        draw.text((73 * _SCALE, 568 * _SCALE), "MOT À LIRE",
-                  font=self.small_font, fill=_MUTED)
-        step = f"Étape {moment.step} / {len(self.word)}"
-        bounds = draw.textbbox((0, 0), step, font=self.body_font)
-        draw.text(((1206 * _SCALE) - (bounds[2] - bounds[0]), 565 * _SCALE),
-                  step, font=self.body_font, fill=_MUTED)
         if not self.word:
-            _centered_text(draw, (640 * _SCALE, 624 * _SCALE),
-                           "ε", _font(37, bold=True), _ACCENT)
+            _centered_text(draw, (90 * _SCALE, 81 * _SCALE),
+                           "ε", self.symbol_fonts[34], _INK)
             return
-
         cursor = moment.active_symbol if moment.active_symbol is not None else moment.step
-        first = min(max(0, cursor - 6), max(0, len(self.word) - 12))
-        visible = list(range(first, min(len(self.word), first + 12)))
-        chip_width, gap = 54 * _SCALE, 10 * _SCALE
-        width = len(visible) * chip_width + (len(visible) - 1) * gap
-        start_x = 640 * _SCALE - width / 2
+        if moment.blocked_at is not None:
+            cursor = moment.blocked_at
+        first = min(max(0, cursor - 7), max(0, len(self.word) - 18))
+        visible = list(range(first, min(len(self.word), first + 18)))
+        rejected = moment.blocked_at is not None or (moment.final and not self.accepted)
+        rejection_start = moment.blocked_at if moment.blocked_at is not None else len(self.word) - 1
+        moving_index = moment.step if moment.edge is not None and moment.phase < 0.93 else None
+        fade = _ease((moment.phase - 0.68) / 0.25) if moving_index is not None else 0.0
+        # One soft cursor glides to the next cell as the state emphasis transfers.
+        if moment.active_symbol is not None and not rejected:
+            position = float(moment.active_symbol)
+            if moving_index is not None and moving_index + 1 < len(self.word):
+                position = moving_index + fade
+            x = (70 + (position - first) * 52) * _SCALE
+            draw.rounded_rectangle((x, 56 * _SCALE, x + 40 * _SCALE, 106 * _SCALE),
+                                   radius=8 * _SCALE, fill=_blend(_ACCENT, _PAPER, 0.10))
         for column, index in enumerate(visible):
-            x = start_x + column * (chip_width + gap)
-            y = 609 * _SCALE
-            if moment.blocked_at == index:
-                fill, ink, border = _REJECT_PALE, _REJECT, _REJECT
-            elif moment.active_symbol == index:
-                fill, ink, border = _ACCENT, "white", _ACCENT
-            elif index < moment.step:
-                fill, ink, border = _ACCENT_PALE, "#397B72", "#CCE6DF"
-            else:
-                fill, ink, border = "white", _INK, "#DCE4ED"
-            draw.rounded_rectangle((x, y, x + chip_width, y + 48 * _SCALE),
-                                   radius=10 * _SCALE, fill=fill, outline=border,
-                                   width=2 * _SCALE)
-            _centered_text(draw, (x + chip_width / 2, y + 24 * _SCALE),
-                           self.word[index], self.body_font, ink)
-            if (index < moment.step and moment.blocked_at != index
-                    and moment.active_symbol != index):
-                _status_mark(draw, (x + chip_width / 2, y + 60 * _SCALE),
-                             _ACCENT, accepted=True, size=6 * _SCALE)
+            x = (70 + column * 52) * _SCALE
+            opacity = 0.25 if index < moment.step else 1.0
+            underline = _ACCENT if index < moment.step or index == moment.active_symbol else _EDGE
+            font_size = 34
+            if index == moving_index:
+                opacity = 1 - 0.75 * fade
+                font_size = round(34 * (1 + 0.075 * math.sin(math.pi * _ease(moment.phase / 0.5))))
+            if rejected and index >= rejection_start:
+                opacity, underline = 1.0, _REJECT
+            ink = _blend(_INK, _PAPER, opacity)
+            _centered_text(draw, (x + 20 * _SCALE, 81 * _SCALE),
+                           self.word[index], self.symbol_fonts[font_size], ink)
+            draw.line([(x, 114 * _SCALE), (x + 40 * _SCALE, 114 * _SCALE)],
+                      fill=_blend(underline, _PAPER, opacity), width=2 * _SCALE)
         if first:
-            draw.text((start_x - 29 * _SCALE, 616 * _SCALE), "…",
+            draw.text((38 * _SCALE, 69 * _SCALE), "…",
                       font=self.body_font, fill=_MUTED)
         if visible[-1] < len(self.word) - 1:
-            draw.text((start_x + width + 11 * _SCALE, 616 * _SCALE), "…",
+            draw.text((1012 * _SCALE, 69 * _SCALE), "…",
                       font=self.body_font, fill=_MUTED)
+
+    def _state_emphasis(
+        self, draw: ImageDraw.ImageDraw, identifier: str, color: str, opacity: float,
+    ) -> None:
+        """Crossfade one state's ring/fill without covering its final-state ring."""
+        if opacity <= 0:
+            return
+        node = self.layout.nodes[identifier]
+        bounds = (node.x - node.rx, node.y - node.ry, node.x + node.rx, node.y + node.ry)
+        draw.ellipse(bounds, fill=_blend(color, _PAPER, 0.10 * opacity),
+                     outline=_blend(color, _EDGE, opacity), width=4)
+        if node.final:
+            inset = 5 * _SCALE
+            draw.ellipse((bounds[0] + inset, bounds[1] + inset,
+                          bounds[2] - inset, bounds[3] - inset), outline=_EDGE, width=3)
+        _centered_text(draw, (node.x, node.y), node.label, self.node_font, _INK)
 
     def frame(self, moment: _Moment) -> Image.Image:
         """Compose one frame without asking Graphviz for a new layout."""
@@ -380,47 +399,34 @@ class _FrameRenderer:
         if moment.edge is not None:
             edge = self.layout.transition(*moment.edge)
             if edge.samples:
-                marker, covered = _point_at(edge.samples, moment.progress)
+                _, covered = _point_at(edge.samples, moment.progress)
+                opacity = _ease(moment.phase / 0.13) * (1 - _ease((moment.phase - 0.78) / 0.22))
                 if len(covered) > 1:
-                    draw.line(covered, fill=_ACCENT, width=4 * _SCALE, joint="curve")
-                radius = 6 * _SCALE
-                draw.ellipse((marker[0] - radius, marker[1] - radius,
-                              marker[0] + radius, marker[1] + radius),
-                             fill=_ACCENT, outline="white", width=2 * _SCALE)
-
-        node = self.layout.nodes[moment.state_id]
-        color = _REJECT if moment.blocked_at is not None else _ACCENT
-        if moment.pulse:
-            expansion = (7 + 10 * moment.pulse) * _SCALE
-            draw.ellipse((node.x - node.rx - expansion,
-                          node.y - node.ry - expansion,
-                          node.x + node.rx + expansion,
-                          node.y + node.ry + expansion),
-                         outline="#BCE7DD", width=3 * _SCALE)
-        draw.ellipse((node.x - node.rx - 4 * _SCALE,
-                      node.y - node.ry - 4 * _SCALE,
-                      node.x + node.rx + 4 * _SCALE,
-                      node.y + node.ry + 4 * _SCALE),
-                     outline=color, width=3 * _SCALE)
+                    draw.line(covered, fill=_blend(_ACCENT, _EDGE, opacity),
+                              width=round((1.5 + 0.7 * opacity) * _SCALE), joint="curve")
+        rejected = moment.blocked_at is not None or (moment.final and not self.accepted)
+        color = _REJECT if rejected else _ACCENT
+        if moment.edge is not None and moment.edge[0] != moment.edge[1]:
+            fade = _ease((moment.phase - 0.68) / 0.25)
+            self._state_emphasis(draw, moment.edge[0], color, 1 - fade)
+            self._state_emphasis(draw, moment.edge[1], color, fade)
+        else:
+            self._state_emphasis(draw, moment.state_id, color, 1)
+        if moment.edge is not None and moment.pulse > 0:
+            node = self.layout.nodes[moment.edge[1]]
+            expansion = (3 + 10 * _ease((moment.phase - 0.67) / 0.33)) * _SCALE
+            draw.ellipse((node.x - node.rx - expansion, node.y - node.ry - expansion,
+                          node.x + node.rx + expansion, node.y + node.ry + expansion),
+                         outline=_blend(_ACCENT, _PAPER, 0.27 * moment.pulse), width=2)
 
         self._word_strip(draw, moment)
         if moment.final:
-            badge = "MOT ACCEPTÉ" if self.accepted else "MOT REFUSÉ"
-            foreground = "#1D7659" if self.accepted else "#A7474C"
-            background = "#E3F3E9" if self.accepted else _REJECT_PALE
-            draw.rounded_rectangle((920 * _SCALE, 55 * _SCALE,
-                                    1209 * _SCALE, 107 * _SCALE),
-                                   radius=15 * _SCALE, fill=background)
-            draw.ellipse((945 * _SCALE, 68 * _SCALE,
-                          971 * _SCALE, 94 * _SCALE), fill=foreground)
-            _status_mark(draw, (958 * _SCALE, 81 * _SCALE), "white",
-                         accepted=self.accepted, size=10 * _SCALE)
-            _centered_text(draw, (1090 * _SCALE, 81 * _SCALE),
+            badge = "Accepté" if self.accepted else "Refusé"
+            foreground = _ACCENT if self.accepted else _REJECT
+            _status_mark(draw, (1100 * _SCALE, 81 * _SCALE), foreground,
+                         accepted=self.accepted, size=9 * _SCALE)
+            _centered_text(draw, (1160 * _SCALE, 81 * _SCALE),
                            badge, self.badge_font, foreground)
-            if moment.blocked_at is not None:
-                detail = f"Transition inexistante pour « {self.word[moment.blocked_at]} »"
-                _centered_text(draw, (640 * _SCALE, 691 * _SCALE),
-                               detail, self.small_font, _REJECT)
         return image.resize(_SIZE, Image.Resampling.LANCZOS)
 
 

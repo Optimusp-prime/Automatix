@@ -207,12 +207,16 @@ class AnimationMixin:
         The verified trace and DOT source provide the logical execution and
         real graph. Graphviz computes one ``plain`` layout, including curved
         edges and self-loops. A 30-fps (by default) raster timeline moves a
-        marker along each spline, highlights the active state and word
-        symbol, then shows the acceptance result. ``fps`` retains its M11
+        progressive stroke along each spline, crossfades the active states
+        and gently pulses the word symbol. The word sits at the top left;
+        consumed symbols are dimmed to 25 percent opacity. ``fps`` retains its M11
         meaning of logical steps per second; ``render_fps`` is the encoded
         frame rate. An empty word has an initial hold and final result.
         A missing transition leaves the last reached state visible and
-        indicates the offending symbol without adding a sink.
+        underlines the offending symbol and its unread suffix in red at
+        full opacity, without adding a sink. Both rejection cases display
+        "Refusé". After a complete nonaccepting run, the last consumed symbol
+        carries the red verdict marker; its transition was still valid.
 
         Frames and the encoded H.264 MP4 are temporary until encoding
         succeeds; the existing destination is then replaced. The parent
@@ -261,7 +265,7 @@ class AnimationMixin:
         References
         ----------
         Automatix M11 and its visual redesign; primary #16 (trace) and
-        #40–#41 (Graphviz); ADR-0027.
+        #40–#41 (Graphviz); ADR-0027 and ADR-0030.
         """
         if not math.isfinite(fps) or fps <= 0:
             raise ValueError("fps must be finite and strictly positive")

@@ -61,6 +61,26 @@ python -m pytest
 
 Les exports `svg()`, `pdf()` et `png()` demandent également l'exécutable système **Graphviz `dot`** dans le `PATH` (`dot -V` permet de le vérifier). Les exports texte `dot()`, `tikz()` et `latex()` n'en ont pas besoin.
 
+## Site de documentation
+
+Les guides, le suivi des fonctionnalités, le backlog du TD et les décisions
+d'architecture sont réunis dans un site MkDocs avec recherche en français.
+
+```bash
+python -m pip install -e ".[docs]"
+python -m mkdocs serve
+```
+
+Pour construire le site avec vérification stricte des liens internes :
+
+```bash
+python -m mkdocs build --strict
+```
+
+Les fichiers générés restent dans `site/`, ignoré par Git. La procédure complète
+est dans [Contribuer à la documentation](docs/DOCUMENTATION.md).
+Aucune publication n'est automatique.
+
 ## Premiers pas
 
 ```python

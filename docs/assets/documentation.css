@@ -1,0 +1,15 @@
+/* Preserve the theme's automatic light/dark colors and keyboard controls. */
+.col-md-9 img {
+  max-width: 100%;
+  height: auto;
+}
+
+.col-md-9 table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.col-md-9 pre {
+  overflow-x: auto;
+}
