@@ -1,4 +1,14 @@
 /* Preserve the theme's automatic light/dark colors and keyboard controls. */
+.homepage .col-md-9 .intro-hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  margin: 1.25rem 0 1.75rem;
+  border: 0;
+  border-radius: 1rem;
+}
+
 .col-md-9 img {
   max-width: 100%;
   height: auto;
@@ -12,4 +22,80 @@
 
 .col-md-9 pre {
   overflow-x: auto;
+}
+
+/* Let long titles wrap instead of widening the page or its menus. */
+.col-md-9,
+#navbar-collapse,
+.navbar-nav {
+  min-width: 0;
+}
+
+.col-md-9 {
+  overflow-wrap: anywhere;
+}
+
+#navbar-collapse .dropdown-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#navbar-collapse .dropdown-menu {
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+.homepage .intro {
+  font-size: 1.2rem;
+  line-height: 1.65;
+  max-width: 45rem;
+}
+
+.homepage .learning-path {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+  margin: 1.5rem 0;
+}
+
+.homepage .learning-path li {
+  padding: 1.25rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: .75rem;
+  background: var(--bs-tertiary-bg);
+}
+
+.homepage .learning-path strong {
+  display: block;
+  margin-bottom: .5rem;
+}
+
+@media (max-width: 991.98px) {
+  /* Bootstrap collapses the main navigation below this breakpoint. */
+  #navbar-collapse.show {
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100dvh - 4rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #navbar-collapse .navbar-nav {
+    margin-left: 0 !important;
+  }
+
+  #navbar-collapse .dropdown-menu {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #navbar-collapse .nav-link,
+  #navbar-collapse .dropdown-item {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+  }
+
+  .homepage .learning-path {
+    grid-template-columns: 1fr;
+  }
 }

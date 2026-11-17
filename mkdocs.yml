@@ -1,4 +1,5 @@
 site_name: Automatix
+site_url: https://optimusp-prime.github.io/Automatix/
 site_description: Documentation de la bibliothèque pédagogique Automatix pour les automates et langages formels.
 repo_url: https://github.com/Optimusp-prime/Automatix
 repo_name: Code source
@@ -8,12 +9,12 @@ site_dir: site
 strict: true
 theme:
   name: mkdocs
+  custom_dir: docs_theme
   locale: fr
   color_mode: auto
   user_color_mode_toggle: true
   navigation_depth: 3
 nav:
-  - Accueil: index.md
   - Guides:
       - Vidéo d'exécution: VIDEO_ANIMATION.md
       - Exécutions acceptantes des NFA: ACCEPTING_RUNS.md
@@ -21,8 +22,6 @@ nav:
   - Référence:
       - API et suivi des fonctionnalités: IMPLEMENTATION_STATUS.md
       - Décisions d'architecture: decisions/README.md
-  - Travaux à venir: TD_BACKLOG.md
-  - Contribuer à la documentation: DOCUMENTATION.md
 plugins:
   - search:
       lang: [fr, en]

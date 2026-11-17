@@ -45,8 +45,22 @@ Le site généré peut être consulté avec un serveur local :
 python -m http.server 8000 --directory site
 ```
 
-Aucune publication ni configuration d'hébergement n'est activée. Une future
-publication devra fixer l'adresse canonique `site_url` dans `mkdocs.yml`.
+## Publication sur GitHub Pages
+
+Adresse du site : <https://optimusp-prime.github.io/Automatix/>.
+Elle figure aussi dans la rubrique **About** du dépôt GitHub.
+
+Après avoir vérifié les modifications, publiez depuis la racine du projet :
+
+```bash
+python -m mkdocs gh-deploy --strict
+```
+
+Cette commande construit le site et pousse uniquement les fichiers générés
+sur la branche `gh-pages`. GitHub Pages utilise cette branche, à sa racine.
+Elle ne committe ni ne pousse les modifications des fichiers source : ceux-ci
+restent à enregistrer sur la branche de travail et à intégrer par PR.
+La publication est manuelle ; un simple push sur `main` ne republie pas le site.
 
 ## Ajouter ou modifier une page
 
@@ -58,6 +72,20 @@ publication devra fixer l'adresse canonique `site_url` dans `mkdocs.yml`.
 Les ADR sont accessibles depuis leur [index](decisions/README.md) et la
 recherche. Ils n'encombrent pas la navigation principale. Conservez les
 décisions acceptées ; une modification d'architecture nécessite un nouvel ADR.
+
+La barre principale contient seulement les rubriques **Guides** et
+**Référence**, en plus de la recherche, du code source et du choix de thème.
+Le nom **Automatix** ramène à l'introduction. Celle-ci, le backlog et cette
+page restent publiés et indexés, sans entrée dédiée dans la barre.
+Le fichier `docs_theme/main.html` conserve ce lien vers l'introduction et
+retire les raccourcis précédent/suivant de la barre. Les adaptations mobiles
+et la présentation de l'introduction sont dans `docs/assets/documentation.css`.
+
+Après une modification de navigation, vérifiez le menu repliable et ses
+sous-menus sur téléphone et tablette, ainsi que la barre sur ordinateur.
+Les titres longs doivent revenir à la ligne et le menu ouvert doit pouvoir
+défiler sur un écran de faible hauteur. Vérifiez aussi le retour à
+l'introduction depuis une page de guide via le nom Automatix.
 
 La page [API et suivi](IMPLEMENTATION_STATUS.md) reste la référence pour les
 statuts des fonctionnalités. Les tâches du TD restent dans le
