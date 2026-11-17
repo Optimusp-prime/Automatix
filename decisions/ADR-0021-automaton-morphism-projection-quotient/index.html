@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/decisions/ADR-0021-automaton-morphism-projection-quotient/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>ADR-0021 — Automaton morphism, projection, and state-quotient semantics - Automatix</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="../../ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="../../DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#adr-0021-automaton-morphism-projection-and-state-quotient-semantics" class="nav-link">ADR-0021 — Automaton morphism, projection, and state-quotient semantics</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#context" class="nav-link">Context</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#decision" class="nav-link">Decision</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#alternatives-considered" class="nav-link">Alternatives considered</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#consequences" class="nav-link">Consequences</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#related-requirements" class="nav-link">Related requirements</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#supersedes" class="nav-link">Supersedes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="adr-0021-automaton-morphism-projection-and-state-quotient-semantics">ADR-0021 — Automaton morphism, projection, and state-quotient semantics<a class="headerlink" href="#adr-0021-automaton-morphism-projection-and-state-quotient-semantics" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted
+Date: 2026-09-24</p>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Professor requirement #61 asks for automaton morphisms through state merging
+or projection while preserving transitions. The supplied mature reference
+names a common <code>MorphismMixin</code> with <code>is_morphism_to</code>, <code>project</code>, and
+<code>quotient_by</code>. Its executed examples establish an identity morphism, the
+acceptance of <code>xxx</code> after <code>a -&gt; x, b -&gt; None</code>, and quotient-state names
+<code>["0", "2"]</code> after merging states <code>0</code> and <code>1</code>. The source material does not
+settle final-state reflection, partial-transition definedness, return types,
+or how a non-congruent DFA merge retains conflicting outgoing edges. The
+mature description explicitly permits such non-congruent merges.</p>
+<p>Automata-lib 9.2.0 supplies DFA/NFA constructors and individual labeled
+edge iteration but no corresponding public morphism or projection API.
+DFA edges have one destination; NFA edges may have several, and NFA epsilon
+is labeled by the empty string.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Automatix uses one shared <code>MorphismMixin</code> implementation exposed by
+<code>ExtendedDFA</code> and <code>ExtendedNFA</code>, but not by <code>ExtendedGNFA</code>. These choices
+below, beyond the three mature observable examples, are <strong>Automatix design
+decisions</strong> resolving the underspecified contract.</p>
+<p><code>is_morphism_to(other, state_map) -&gt; bool</code> accepts DFA/NFA source and target
+combinations. The map domain must equal the full source state set, every
+image must belong to the target, alphabets must agree, and the source initial
+state must map to the target initial state. Every source final must map to a
+target final; nonfinal states may also map to final states. Every source edge,
+including an NFA epsilon edge, must have its mapped counterpart in the
+target. Target-only edges are allowed. A missing source transition imposes no
+condition, so no implicit DFA sink is constructed. Invalid map semantics
+return <code>False</code>. This is forward edge/finality preservation, not isomorphism
+or equality/reflection of transition sets.</p>
+<p><code>project(symbol_map) -&gt; ExtendedNFA</code> requires a mapping defined on exactly
+the source alphabet. Each image is one character or <code>None</code>; <code>None</code> becomes
+an NFA epsilon edge. Existing source NFA epsilon edges are unchanged.
+Colliding projected labels union all destinations. States, initial state and
+final states are retained; the result alphabet is exactly the non-None
+images. Invalid map domains or image labels raise <code>ValueError</code>. A fresh NFA
+is returned consistently, even when a particular projection is deterministic.
+Arbitrary target words are outside #61.</p>
+<p><code>quotient_by(state_map) -&gt; ExtendedNFA</code> requires a mapping defined on exactly
+the source state set, with hashable image labels. The result states are its
+image; the initial state is mapped; a quotient state is final iff at least
+one source final maps to it. Every source edge is mapped, with all
+destinations unioned on collision. Non-congruent DFA merges are accepted and
+retain every edge as NFA nondeterminism. Invalid map domains or unhashable
+image labels raise <code>ValueError</code>. The quotient map is then a valid morphism
+under the forward-only predicate above.</p>
+<p>Neither transformation modifies its source or caller map. Neither performs
+automatic completion, determinization, or minimization. The shared module
+is integrated selectively to avoid misleading GNFA regex-label semantics.</p>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Requiring transition-set equality or final-state reflection would reject
+  the natural quotient map after a non-congruent merge or a mixed-final fibre.</li>
+<li>Choosing one destination for a merged DFA transition would violate the
+  professor's transition-preservation requirement.</li>
+<li>Rejecting every non-congruent merge would conflict with the mature
+  description.</li>
+<li>Returning a DFA only when projection happens to be deterministic would
+  make the API's return type input-dependent and obscure epsilon/collision
+  behavior.</li>
+<li>Attaching the mixin to <code>ExtendedFA</code> would expose an unsupported GNFA API.</li>
+</ul>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<p>Projection and quotient may recognize languages that differ from the source
+under state fusion, as the mathematical operations require; they preserve
+mapped paths rather than claim language equality. Callers can explicitly
+determinize a returned NFA when needed. The exact mature examples are
+regression tests. #26 isomorphism, #32 minimization, and #62 syntactic monoid
+remain separate features.</p>
+<h2 id="related-requirements">Related requirements<a class="headerlink" href="#related-requirements" title="Permanent link">&para;</a></h2>
+<p>Implements #61. #62 remains TODO.</p>
+<h2 id="supersedes">Supersedes<a class="headerlink" href="#supersedes" title="Permanent link">&para;</a></h2>
+<p>None.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

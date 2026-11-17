@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/decisions/ADR-0022-syntactic-monoid-representation/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>ADR-0022 — Syntactic monoid representation and canonical normalization - Automatix</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="../../ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="../../DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#adr-0022-syntactic-monoid-representation-and-canonical-normalization" class="nav-link">ADR-0022 — Syntactic monoid representation and canonical normalization</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#context" class="nav-link">Context</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#decision" class="nav-link">Decision</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#alternatives-considered" class="nav-link">Alternatives considered</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#consequences" class="nav-link">Consequences</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#related-requirements" class="nav-link">Related requirements</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#supersedes" class="nav-link">Supersedes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="adr-0022-syntactic-monoid-representation-and-canonical-normalization">ADR-0022 — Syntactic monoid representation and canonical normalization<a class="headerlink" href="#adr-0022-syntactic-monoid-representation-and-canonical-normalization" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted
+Date: 2026-09-24</p>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>Professor requirement #62 asks for the syntactic monoid constructed from
+word-induced transformations. The supplied mature extension names DFA-only
+<code>SyntacticMonoidMixin.syntactic_monoid()</code> and reports three elements for its
+executed modulo-three DFA. It specifies neither the public transformation
+representation nor the return container. The broader analysis mentions
+<code>SyntacticMonoid</code> and <code>TransitionMonoid</code> as concepts, without a class API.</p>
+<p>Closing transformations over an arbitrary DFA's stored states instead yields
+that <strong>representation's transition monoid</strong>. Inaccessible or equivalent states
+can enlarge it, while partial transitions do not define total maps. The
+syntactic monoid of a language is isomorphic to the transition monoid of its
+minimal complete DFA. Verified requirement #60 already builds that DFA from
+the distinct left quotients, including an empty quotient when needed.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Expose <code>ExtendedDFA.syntactic_monoid() -&gt; frozenset[tuple[int, ...]]</code> through
+<code>SyntacticMonoidMixin</code> only. First call <code>residual_automaton()</code>; do not redo
+minimization or close over the source transition table. The residual states
+must be exactly <code>q0, ..., q(n-1)</code>; their numeric indices define each tuple's
+positions and destinations: entry <code>i == j</code> means <code>qi -&gt; qj</code>. This tuple and
+frozenset representation is an <strong>Automatix public API decision</strong>, not a type
+specified by the supplied mature material. The set has no iteration order.</p>
+<p>Include <code>tuple(range(n))</code> as the empty word's identity, including for an
+empty alphabet. Construct one total generator for each input letter from the
+complete residual DFA. A queue closes the discovered transformations by
+appending each letter. If <code>tau_w</code> is the current tuple and <code>tau_a</code> the letter
+tuple, the appended word <code>wa</code> has <code>tau_(wa) = tau_a ∘ tau_w</code>, encoded by
+<code>next[i] = tau_a[tau_w[i]]</code>. Extending each discovered element by each letter
+generates every word by induction from the empty word; all-pairs composition
+is unnecessary.</p>
+<p>The method is a pure query. It does not mutate the source or #60's fresh
+residual automaton and does not cache its result. Its output is a language
+invariant up to monoid isomorphism; literal tuple equality across arbitrary
+renamings is not promised. Partial source DFAs are normalized through #60's
+empty residual. Source-inaccessible and equivalent states disappear.</p>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Direct closure on <code>self</code> would calculate a potentially larger source
+  transition monoid and mishandle partial transitions.</li>
+<li><code>complete().minimize()</code> can also give a suitable minimal complete DFA but
+  duplicates normalization policy already verified by #59/#60 and provides
+  less direct q-index semantics.</li>
+<li>A mutable set or mapping would weaken the immutable mathematical API.</li>
+<li>Dedicated public monoid or transformation classes, multiplication tables,
+  and general algebraic operations are unsupported by the supplied contract.</li>
+<li>automata-lib 9.2.0 has no syntactic-monoid closure operation to delegate to.</li>
+</ul>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<p>If the canonical DFA has <code>n</code> states, the alphabet has <code>s</code> letters, and the
+monoid has <code>m</code> transformations, closure uses expected <code>O(m*s*n)</code> time and
+<code>O(m*n + s*n)</code> space, in addition to #60's construction cost and storage.
+The explicit result can be large: <code>m &lt;= n**n</code>. The mature three-state DFA
+produces exactly identity and two rotations, matching its observed size 3.</p>
+<h2 id="related-requirements">Related requirements<a class="headerlink" href="#related-requirements" title="Permanent link">&para;</a></h2>
+<p>Implements final professor requirement #62 using verified #59/#60. Does not
+change their public behavior or introduce a standalone algebra framework.</p>
+<h2 id="supersedes">Supersedes<a class="headerlink" href="#supersedes" title="Permanent link">&para;</a></h2>
+<p>None.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/decisions/ADR-0028-epsilon-free-accepting-runs/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>ADR-0028 - Accepting runs of epsilon-free NFAs - Automatix</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="../../ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="../../DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#adr-0028-accepting-runs-of-epsilon-free-nfas" class="nav-link">ADR-0028 - Accepting runs of epsilon-free NFAs</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#context" class="nav-link">Context</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#decision" class="nav-link">Decision</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#alternatives-considered" class="nav-link">Alternatives considered</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#consequences" class="nav-link">Consequences</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#related-requirements" class="nav-link">Related requirements</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#supersedes" class="nav-link">Supersedes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="adr-0028-accepting-runs-of-epsilon-free-nfas">ADR-0028 - Accepting runs of epsilon-free NFAs<a class="headerlink" href="#adr-0028-accepting-runs-of-epsilon-free-nfas" title="Permanent link">&para;</a></h1>
+<p>Status: Accepted
+Date: 2026-10-16</p>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Permanent link">&para;</a></h2>
+<p>INF302 Enonce_TD.v04 exercise 38 asks to list accepting executions and
+compute N(A,u), their count for one input word. The user selected this
+feature after a coverage audit and explicitly accepted starting without
+epsilon transitions. It is supplemental TD work, not a change to the
+professor requirements numbered #1-#62 or previously verified features.</p>
+<p>automata-lib 9.2.0 has no colliding accepting_runs/count_accepting_runs API.
+NFA.read_input_stepwise merges active states; _get_input_path selects one
+path. DFA.count_words_of_length counts words, not executions. None can
+implement this contract by delegation. The mature reference contains no
+documented accepting-run API to reproduce.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Expose AcceptingRunsMixin on ExtendedNFA only, before the upstream NFA:</p>
+<ul>
+<li>accepting_runs(word: str) -&gt; Iterator[tuple[FAStateT, ...]]</li>
+<li>count_accepting_runs(word: str) -&gt; int</li>
+</ul>
+<p>A run contains the initial state and one state per consumed character,
+ending in an original final state. Destination sets contain no parallel
+copies of an identical edge; runs are distinguished by their state history.
+An empty word has exactly one accepting run if the initial state is final.
+Unknown characters and dead ends yield no runs/count zero.</p>
+<p>Validate the string and absence of real epsilon edges eagerly, even for
+unreachable edges and empty words. Raise TypeError for a non-string and
+ValueError for an epsilon edge. An empty epsilon destination set is not an
+edge. Do not automatically eliminate epsilon transitions: language
+equivalence does not preserve the number of execution paths.</p>
+<p>Use iterative DFS for lazy enumeration, with an iterator stack and a
+single mutable local prefix; yield immutable tuple snapshots. Never merge
+histories or sort heterogeneous state names. Destination iteration order
+is deliberately not a stable-order API. Every call has independent state.</p>
+<p>Count using the natural-number recurrence c_0(initial)=1 and
+c_(i+1)(r)=sum(c_i(q) for each q --word[i]--&gt; r). Keep only the current
+and next dictionaries. Sum over final states after consuming the word.
+Python integers preserve exact large multiplicities. Neither query mutates
+the automaton, populates a persistent cache, determinizes or calls the
+other query.</p>
+<h2 id="alternatives-considered">Alternatives considered<a class="headerlink" href="#alternatives-considered" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Count by enumerating runs: exponential even when dynamic programming
+  needs only a small active-state set.</li>
+<li>Use active-state sets: loses multiplicity when branches merge.</li>
+<li>Memoize a recursive counter: introduces recursion limits and unnecessary
+  state/history storage; a two-layer recurrence is simpler.</li>
+<li>Support epsilon paths now: cycles can produce infinitely many runs and
+  require another mathematical contract, outside the agreed first scope.</li>
+<li>Put the feature in ExtendedFA: deterministic targets and regex-labelled
+  GNFA edges require different semantics; this API is specifically NFA.</li>
+</ul>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<p>Enumeration can be exponential because its output is exponential. It
+validates in O(|Q|+n), then takes O(P+A<em>(n+1)) time for explored prefix
+extensions P and A accepted runs. DFS auxiliary references are O(n+1);
+retaining the output requires O(A</em>(n+1)) additional references.</p>
+<p>Counting takes O(|Q|+n+sum_i E_i) with unit-cost arithmetic, for matching
+edges E_i from each active layer. It retains O(|Q|) integer entries.
+Arbitrary-precision additions cost O(B) for B-bit counts; integer storage
+can take O(|Q|*B) bits besides state references. All lookup bounds assume
+expected constant-time hashing. No algorithm-result cache is introduced.</p>
+<p>Tests check the exercise-38 occurrence identity and product-square law,
+independent exhaustive state-sequence enumeration, merged branches,
+empty words/languages, dead ends, heterogeneous/None states, epsilon
+rejection, immutability, iteration independence and long words. Upstream
+NetworkX rejects None as a node during NFA simulation; the independent
+language check for that fixture uses the existing determinization, without
+changing upstream or the recognition API.</p>
+<h2 id="related-requirements">Related requirements<a class="headerlink" href="#related-requirements" title="Permanent link">&para;</a></h2>
+<p>Supplemental TD38; existing #16 execution trace and #43 NFA intersection.
+See <a href="../../ACCEPTING_RUNS/">usage and mathematical contract</a>.</p>
+<h2 id="supersedes">Supersedes<a class="headerlink" href="#supersedes" title="Permanent link">&para;</a></h2>
+<p>None.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

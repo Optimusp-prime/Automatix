@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/DERIVATIVE_DFA/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Automate par dérivées de regex - Automatix</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="../ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../decisions/" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#automate-construit-par-derivees-dexpression-reguliere" class="nav-link">Automate construit par dérivées d'expression régulière</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#construction-mathematique" class="nav-link">Construction mathématique</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#contrats-et-limites" class="nav-link">Contrats et limites</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#cout-et-validation" class="nav-link">Coût et validation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#references" class="nav-link">Références</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="automate-construit-par-derivees-dexpression-reguliere">Automate construit par dérivées d'expression régulière<a class="headerlink" href="#automate-construit-par-derivees-dexpression-reguliere" title="Permanent link">&para;</a></h1>
+<p><code>Regex.to_dfa()</code> complète le calcul des dérivées déjà disponible : la méthode
+construit directement un <code>ExtendedDFA</code>, utilisable avec les opérations et
+les exports habituels.</p>
+<pre><code class="language-python">from automata_extensions.regex import Regex
+
+expression = Regex(&quot;ab|ac&quot;, input_symbols={&quot;a&quot;, &quot;b&quot;, &quot;c&quot;})
+automate = expression.to_dfa()
+
+assert automate.is_complete()
+assert automate.accepts(&quot;ab&quot;)
+assert automate.accepts(&quot;ac&quot;)
+assert not automate.accepts(&quot;a&quot;)
+
+apres_a = automate.transitions[automate.initial_state][&quot;a&quot;]
+assert str(apres_a) == &quot;b|c&quot;
+minimal = automate.minimize()
+assert minimal.is_equivalent(automate)
+</code></pre>
+<h2 id="construction-mathematique">Construction mathématique<a class="headerlink" href="#construction-mathematique" title="Permanent link">&para;</a></h2>
+<p>Un état représente une expression dérivée : après avoir lu u, il reconnaît
+les suffixes v tels que uv appartient au langage initial. La transition
+étiquetée a conduit à la dérivée par a. Un état est accepteur si son
+expression contient le mot vide.</p>
+<p>Le parcours en largeur explore les seuls états accessibles et crée une
+transition pour chaque symbole de l'alphabet mémorisé dans <code>Regex</code>. Une
+dérivée vide accessible devient un état puits rejetant. L'alphabet vide
+est autorisé : un unique état sans transition est alors complet.</p>
+<p>La normalisation interne rassemble les termes d'une union, supprime les
+doublons et fixe leur ordre. Elle traite aussi l'associativité de la
+concaténation, les identités du mot vide et du langage vide, et les étoiles
+triviales ou imbriquées. La similarité des expressions suffit à rendre
+finie l'exploration ; elle ne reconnaît pas nécessairement toutes les
+équivalences de langages. Le résultat n'est donc pas garanti minimal.
+Voir Owens, Reppy et Turon, section 4.1, dans les références ci-dessous.</p>
+<h2 id="contrats-et-limites">Contrats et limites<a class="headerlink" href="#contrats-et-limites" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Les états sont des objets <code>Regex</code> immuables, pas des noms artificiels.
+  L'état initial est la forme normalisée de l'expression source.</li>
+<li>La source et les résultats existants de <code>derivative()</code> restent inchangés.
+  Chaque conversion produit un nouvel automate sans cache persistant.</li>
+<li>La méthode réutilise les dérivées ; elle n'appelle ni Thompson, ni une
+  construction par sous-ensembles, ni un test d'équivalence de langages.</li>
+<li>La syntaxe reste celle de <code>Regex</code> : <code>|</code>, concaténation implicite, <code>*</code>,
+  parenthèses et <code>()</code> ou chaîne vide pour epsilon. L'alphabet explicite
+  contient des caractères uniques et doit inclure tous les littéraux.
+  La notation mathématique <code>+</code> du TD doit être transcrite en <code>|</code>.</li>
+<li>Les expressions 4 et 5 du TD 51 utilisent c et d malgré l'alphabet
+  annoncé dans l'introduction de l'exercice : ces caractères doivent être
+  inclus dans l'alphabet choisi pour les convertir.</li>
+<li><code>str(regex)</code> est un affichage diagnostique, pas une sérialisation. Le
+  littéral <code>∅</code> et le langage vide interne peuvent s'afficher pareil ; la
+  construction les distingue par leur structure, sans reparsing du texte.</li>
+<li>La récursion des opérations sur l'AST impose la limite habituelle de
+  profondeur de Python. Le nombre d'états et la taille des expressions
+  peuvent croître fortement. Un alphabet Unicode est possible mais est
+  parcouru caractère par caractère, sans regroupement en classes.</li>
+</ul>
+<h2 id="cout-et-validation">Coût et validation<a class="headerlink" href="#cout-et-validation" title="Permanent link">&para;</a></h2>
+<p>Pour R états atteignables et s symboles, le graphe contient R<em>s transitions.
+Le coût est O(s log s + R</em>s + C + V), où C regroupe les calculs réels de
+dérivées, normalisation, comparaison structurelle, tri, hachage et
+nullabilité, et V la construction du DFA. La mémoire comprend le graphe,
+les AST retenus et leur espace de calcul temporaire. Le coût par transition
+n'est pas supposé constant ; une croissance exponentielle est possible.</p>
+<p><code>tests/regex/test_derivative_dfa.py</code> compare les langages obtenus avec
+automata-lib et la construction de Thompson d'Automatix. Les autres tests
+vérifient les états dérivés, la complétude, les cas vides, Unicode, la
+normalisation, l'immuabilité et l'absence de conversion intermédiaire.</p>
+<h2 id="references">Références<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>INF302, Enonce_TD.v04, exercice 51.</li>
+<li><a href="https://doi.org/10.1145/321239.321249">Brzozowski (1964), Derivatives of Regular Expressions</a>.</li>
+<li><a href="https://doi.org/10.1017/S0956796808007090">Owens, Reppy et Turon (2009), Regular-expression derivatives re-examined</a>, section 4.1.</li>
+<li><a href="../decisions/ADR-0029-derivative-dfa-normal-forms/">ADR-0029</a>.</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

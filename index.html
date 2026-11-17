@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Documentation de la bibliothèque pédagogique Automatix pour les automates et langages formels.">
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/">
+        <link rel="shortcut icon" href="img/favicon.ico">
+        <title>Automatix</title>
+        <link href="css/bootstrap.min.css" rel="stylesheet">
+        <link href="css/fontawesome.min.css" rel="stylesheet">
+        <link href="css/brands.min.css" rel="stylesheet">
+        <link href="css/solid.min.css" rel="stylesheet">
+        <link href="css/v4-font-face.min.css" rel="stylesheet">
+        <link href="css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body class="homepage">
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="decisions/" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#bienvenue-dans-automatix" class="nav-link">Bienvenue dans Automatix</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#un-automate-comment-ca-marche" class="nav-link">Un automate, comment ça marche ?</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#installer-la-bibliotheque" class="nav-link">Installer la bibliothèque</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#construire-votre-premier-automate" class="nav-link">Construire votre premier automate</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#tester-et-comprendre-le-resultat" class="nav-link">Tester et comprendre le résultat</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#voir-lexecution-en-video" class="nav-link">Voir l'exécution en vidéo</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#pour-aller-plus-loin" class="nav-link">Pour aller plus loin</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="bienvenue-dans-automatix">Bienvenue dans Automatix<a class="headerlink" href="#bienvenue-dans-automatix" title="Permanent link">&para;</a></h1>
+<p><img alt="Illustration d'un mot binaire entrant dans un réseau d'états reliés par des transitions, jusqu'à un état final à double cercle." class="intro-hero" src="assets/automatix-hero-illustration.png" /></p>
+<p class="intro">Comprendre les automates, les construire en Python et voir les mots prendre
+vie, symbole après symbole.</p>
+<p>Automatix est un projet pédagogique réalisé dans le cadre d'un travail
+confié par <strong>M. Kagny François, mon professeur</strong>. Il relie les notions du
+cours de langages formels à des expériences concrètes : créer un automate,
+tester un mot, observer son exécution et comprendre le résultat.</p>
+<p>La bibliothèque étend <strong>automata-lib 9.2.0</strong> avec des outils pour les
+automates, les expressions régulières et les grammaires régulières.
+Vous pouvez commencer avec l'exemple ci-dessous, puis explorer les guides
+à votre rythme.</p>
+<ul class="learning-path">
+  <li><strong>1. Comprendre</strong>Un état décrit où l'on se trouve ; une transition indique où aller en lisant un symbole.</li>
+  <li><strong>2. Expérimenter</strong>Construisez un petit automate et comparez des mots acceptés et refusés.</li>
+  <li><strong>3. Observer</strong>Animez une exécution pour suivre chaque symbole et chaque transition.</li>
+</ul>
+
+<h2 id="un-automate-comment-ca-marche">Un automate, comment ça marche ?<a class="headerlink" href="#un-automate-comment-ca-marche" title="Permanent link">&para;</a></h2>
+<p>Un automate lit un <strong>mot</strong>, c'est-à-dire une suite de symboles d'un
+<strong>alphabet</strong>. Il part d'un <strong>état initial</strong> et suit les transitions au fil
+de la lecture. Dans un automate déterministe, chaque symbole détermine au
+plus une transition depuis l'état courant.</p>
+<p>Le mot est <strong>accepté</strong> si la lecture se termine dans un <strong>état final</strong>.
+Il est <strong>refusé</strong> si une transition nécessaire manque ou si l'état atteint
+après le dernier symbole n'est pas final.</p>
+<p>Prenons un exemple simple : reconnaître <code>a</code>, <code>aa</code>, <code>aaa</code>, etc., mais
+refuser le mot vide. L'alphabet contient uniquement le symbole <code>a</code>.</p>
+<h2 id="installer-la-bibliotheque">Installer la bibliothèque<a class="headerlink" href="#installer-la-bibliotheque" title="Permanent link">&para;</a></h2>
+<p>Avec <strong>Python 3.11 ou plus</strong>, ouvrez un terminal dans le dossier du projet :</p>
+<pre><code class="language-bash">python -m pip install -e .
+</code></pre>
+<p>Vous pouvez ensuite exécuter les exemples dans un script Python ou dans
+un notebook utilisant cet environnement.</p>
+<h2 id="construire-votre-premier-automate">Construire votre premier automate<a class="headerlink" href="#construire-votre-premier-automate" title="Permanent link">&para;</a></h2>
+<pre><code class="language-python">from automata_extensions.fa import ExtendedDFA
+
+dfa = ExtendedDFA(
+    states={&quot;q0&quot;, &quot;q1&quot;},
+    input_symbols={&quot;a&quot;},
+    transitions={
+        &quot;q0&quot;: {&quot;a&quot;: &quot;q1&quot;},
+        &quot;q1&quot;: {&quot;a&quot;: &quot;q1&quot;},
+    },
+    initial_state=&quot;q0&quot;,
+    final_states={&quot;q1&quot;},
+)
+</code></pre>
+<p>Au départ, on se trouve dans <code>q0</code>, qui n'est pas final. Le premier <code>a</code>
+mène à <code>q1</code>, un état final. Chaque <code>a</code> suivant nous laisse dans <code>q1</code>.
+L'automate reconnaît donc exactement les mots contenant <strong>au moins un <code>a</code></strong>
+sur cet alphabet.</p>
+<h2 id="tester-et-comprendre-le-resultat">Tester et comprendre le résultat<a class="headerlink" href="#tester-et-comprendre-le-resultat" title="Permanent link">&para;</a></h2>
+<pre><code class="language-python">print(dfa.accepts(&quot;a&quot;))    # True
+print(dfa.accepts(&quot;aaa&quot;))  # True
+print(dfa.accepts(&quot;&quot;))     # False : aucun symbole n'a été lu
+</code></pre>
+<p>Pour <code>aaa</code>, le parcours est <code>q0 → q1 → q1 → q1</code>. Tous les symboles ont
+été lus et l'état d'arrivée est final : le mot est accepté.
+Pour le mot vide, noté <strong>ε</strong> en mathématiques et <code>""</code> en Python, on reste
+dans <code>q0</code> : le mot est refusé.</p>
+<p><strong>À vous de jouer :</strong> avant de lancer <code>dfa.accepts("aa")</code>, prédisez le
+résultat et retracez les états visités. Puis essayez le mot vide après
+avoir construit un nouvel automate où <code>q0</code> est aussi final.</p>
+<h2 id="voir-lexecution-en-video">Voir l'exécution en vidéo<a class="headerlink" href="#voir-lexecution-en-video" title="Permanent link">&para;</a></h2>
+<p>Dans la même session Python, vous pouvez exporter la lecture de <code>aaa</code> :</p>
+<pre><code class="language-python">dfa.export_animation_video(&quot;aaa&quot;)
+</code></pre>
+<p>La vidéo est enregistrée dans <code>animation.mp4</code>, dans le dossier courant.
+Cet export nécessite <strong>Graphviz</strong> et <strong>FFmpeg</strong> : Automatix les cherche
+automatiquement dans le <code>PATH</code>, puis dans l'environnement Python courant.
+Le <a href="VIDEO_ANIMATION/">guide vidéo</a> explique l'installation des outils,
+le choix du fichier de sortie et l'utilisation d'un autre environnement.</p>
+<h2 id="pour-aller-plus-loin">Pour aller plus loin<a class="headerlink" href="#pour-aller-plus-loin" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Votre prochaine étape</th>
+<th>La ressource</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Suivre les symboles consommés et comprendre un refus</td>
+<td><a href="VIDEO_ANIMATION/">Vidéo d'exécution</a></td>
+</tr>
+<tr>
+<td>Explorer les différents parcours d'un automate non déterministe</td>
+<td><a href="ACCEPTING_RUNS/">Exécutions acceptantes des NFA</a></td>
+</tr>
+<tr>
+<td>Passer d'une expression régulière à un automate</td>
+<td><a href="DERIVATIVE_DFA/">Automate par dérivées de regex</a></td>
+</tr>
+<tr>
+<td>Trouver une méthode et connaître ses limites</td>
+<td><a href="IMPLEMENTATION_STATUS/">API et suivi des fonctionnalités</a></td>
+</tr>
+<tr>
+<td>Comprendre les choix de conception</td>
+<td><a href="decisions/">Décisions d'architecture</a></td>
+</tr>
+</tbody>
+</table>
+<p>Les transformations comme <code>trim()</code> ou <code>minimize()</code> créent de nouveaux
+automates sans modifier l'original : vous pouvez ainsi comparer les
+résultats et enchaîner les opérations. Le
+<a href="https://github.com/Optimusp-prime/Automatix#readme">README du dépôt</a>
+propose d'autres démonstrations pour poursuivre l'exploration.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = ".",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="js/base.js"></script>
+        <script src="search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 2026-11-17 00:04:53.454837+00:00
+-->

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/VIDEO_ANIMATION/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Vidéo d'exécution - Automatix</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="../ACCEPTING_RUNS/" class="dropdown-item">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="../DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../decisions/" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#video-dexecution-dun-mot" class="nav-link">Vidéo d'exécution d'un mot</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#lecture-du-rendu" class="nav-link">Lecture du rendu</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#prerequis-et-exemples" class="nav-link">Prérequis et exemples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="video-dexecution-dun-mot">Vidéo d'exécution d'un mot<a class="headerlink" href="#video-dexecution-dun-mot" title="Permanent link">&para;</a></h1>
+<p><code>ExtendedDFA.export_animation_video()</code> produit une vidéo MP4 1280×720 au rendu
+« Fil de lecture ». Le graphe reste fixe pendant toute la lecture.</p>
+<p>Une fois l'automate créé, aucun <code>import os</code> ni ajout au <code>PATH</code> n'est nécessaire
+si Graphviz et FFmpeg sont installés dans l'environnement Python utilisé :</p>
+<pre><code class="language-python">A.export_animation_video(&quot;101010&quot;)  # animation.mp4 dans le dossier courant
+A.export_animation_video(&quot;101010&quot;, &quot;ma_video.mp4&quot;)
+A.export_animation_video(&quot;101010&quot;, &quot;videos&quot;)  # dossier existant : videos/animation.mp4
+</code></pre>
+<p>Le dossier courant est celui du noyau du notebook ou du processus Python.
+Un chemin absolu peut également être fourni. Les dossiers ne sont pas créés
+automatiquement ; un fichier existant est remplacé après un export réussi.</p>
+<p>Pour choisir l'environnement contenant Graphviz et FFmpeg :</p>
+<pre><code class="language-python">A.export_animation_video(&quot;101010&quot;, env_path=r&quot;C:\mes_envs\automate&quot;)
+A.export_animation_video(&quot;101010&quot;, &quot;ma_video.mp4&quot;, env_path=&quot;./.venv&quot;)
+</code></pre>
+<p><code>env_path=None</code> (valeur par défaut) conserve la découverte automatique actuelle.
+Le chemin fourni est la <strong>racine du dossier d'environnement</strong>, pas <code>python.exe</code>
+ni <code>Library/bin</code>. Les chemins relatifs et <code>~</code> sont acceptés. Avec un chemin
+explicite, les deux outils doivent être présents dans cet environnement ; aucun
+autre environnement n'est utilisé en remplacement. Cette option choisit les
+exécutables externes, sans changer le noyau Python du notebook ni son <code>PATH</code>.</p>
+<pre><code class="language-python">from automata_extensions.fa import ExtendedDFA
+
+automate = ExtendedDFA(
+    states={1, 2, 3, 4, 5},
+    input_symbols={&quot;0&quot;, &quot;1&quot;},
+    transitions={1: {&quot;1&quot;: 2}, 2: {&quot;0&quot;: 5, &quot;1&quot;: 3}, 3: {},
+                 4: {&quot;0&quot;: 5}, 5: {&quot;0&quot;: 3, &quot;1&quot;: 4}},
+    initial_state=1, final_states={1, 5}, allow_partial=True,
+)
+automate.export_animation_video(&quot;101010&quot;, &quot;accepte.mp4&quot;, fps=0.8)
+automate.export_animation_video(&quot;10100&quot;, &quot;refuse.mp4&quot;, fps=0.8)
+automate.export_animation_video(&quot;110101&quot;, &quot;transition_absente.mp4&quot;, fps=0.8)
+</code></pre>
+<h2 id="lecture-du-rendu">Lecture du rendu<a class="headerlink" href="#lecture-du-rendu" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Mot en haut à gauche, sans titre ni légende superflue.</li>
+<li>Symboles consommés estompés à 25 % ; légère pulsation à la consommation.</li>
+<li>Tracé progressif de la transition, départ et arrivée en douceur, fondu entre
+  états et halo léger. Doubles cercles et flèche initiale conservent leur sens.
+  Les pointes s'arrêtent à environ deux pixels du contour extérieur de l'état
+  d'arrivée, y compris pour la flèche initiale et les boucles.</li>
+<li>Verdict final <strong>Accepté</strong> ou <strong>Refusé</strong>, avec coche/croix.</li>
+<li>Transition absente : symbole bloquant et suffixe non lu à 100 % d'opacité,
+  traits inférieurs rouges ; arrêt au dernier état réel, sans état puits ajouté.</li>
+<li>Mot entièrement lu mais état non final : seul le dernier symbole reçoit le
+  repère rouge à 100 %. C'est un repère de refus du mot, pas une transition invalide.</li>
+<li>Mot vide : ε puis verdict. Les mots longs utilisent une fenêtre de 18 symboles
+  et des points de suspension ; le suffixe hors champ reste non consommé.</li>
+</ul>
+<p><code>fps</code> est le nombre de symboles par seconde (<code>0.8</code> donne 1,25 seconde par symbole).
+<code>render_fps</code>, 30 par défaut, est la cadence vidéo. Si la lecture est plus rapide
+que la cadence vidéo, les états restent corrects mais les mouvements intermédiaires
+ne peuvent pas tous être représentés.</p>
+<h2 id="prerequis-et-exemples">Prérequis et exemples<a class="headerlink" href="#prerequis-et-exemples" title="Permanent link">&para;</a></h2>
+<p>Graphviz (<code>dot</code>) et FFmpeg sont nécessaires à l'export ; Pillow est une dépendance
+Python du projet. Le répertoire de destination doit exister. L'automate n'est pas
+modifié, et un fichier existant n'est remplacé qu'après un encodage réussi.
+Les exécutables sont recherchés sur le <code>PATH</code>, puis à côté du Python courant
+(y compris <code>Scripts</code> et <code>Library/bin</code> sous Windows/Conda, ou <code>bin</code> sous Linux/macOS).
+Aucun chemin propre
+à une machine n'est inscrit dans le code, et le <code>PATH</code> du processus n'est pas
+modifié. Si un outil est réellement absent, l'export indique lequel installer.</p>
+<p>Depuis la racine du dépôt, générer les trois exemples avec :</p>
+<pre><code class="language-console">python -m notebooks.video_fil_lecture --output notebooks/video_fil_lecture
+</code></pre>
+<p>Le lecteur HTML historique <code>animate()</code> conserve son contrat. Cette refonte porte
+sur l'export vidéo. Architecture : <a href="../decisions/ADR-0030-fil-de-lecture-video/">ADR-0030</a>.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

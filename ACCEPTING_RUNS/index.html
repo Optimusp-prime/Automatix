@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="auto">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        <link rel="canonical" href="https://optimusp-prime.github.io/Automatix/ACCEPTING_RUNS/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Exécutions acceptantes des NFA - Automatix</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" disabled>
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/documentation.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+<a class="navbar-brand" href="../index.html" aria-label="Automatix — introduction">Automatix</a>
+
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../VIDEO_ANIMATION/" class="dropdown-item">Vidéo d'exécution</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Exécutions acceptantes des NFA</a>
+</li>
+                                    
+<li>
+    <a href="../DERIVATIVE_DFA/" class="dropdown-item">Automate par dérivées de regex</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Référence</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../IMPLEMENTATION_STATUS/" class="dropdown-item">API et suivi des fonctionnalités</a>
+</li>
+                                    
+<li>
+    <a href="../decisions/" class="dropdown-item">Décisions d'architecture</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Rechercher
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/Optimusp-prime/Automatix" class="nav-link">Code source</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                              <button id="theme-menu" aria-expanded="false" data-bs-toggle="dropdown" data-bs-display="static" aria-label="Toggle theme" class="nav-link dropdown-toggle">
+                                <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                <span class="d-lg-none ms-2">Toggle theme</span>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
+                                    <i class="fa-solid fa-sun fa-fw"></i>
+                                    <span class="ms-2">Light</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
+                                    <i class="fa-solid fa-moon fa-fw"></i>
+                                    <span class="ms-2">Dark</span>
+                                    <i class="fa-solid fa-check ms-auto d-none"></i>
+                                  </button>
+                                </li>
+                                <li>
+                                  <button class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto" aria-pressed="true">
+                                    <i class="fa-solid fa-circle-half-stroke fa-fw"></i>
+                                    <span class="ms-2">Auto</span>
+                                    <i class="fa-solid fa-check ms-auto"></i>
+                                  </button>
+                                </li>
+                              </ul>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <script src="../js/darkmode.js"></script>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table des matières">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#exercice-38-executions-acceptantes-des-nfa-sans-epsilon" class="nav-link">Exercice 38 : executions acceptantes des NFA sans epsilon</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#contrat" class="nav-link">Contrat</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#construction-mathematique" class="nav-link">Construction mathematique</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#cout-et-limites" class="nav-link">Cout et limites</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="exercice-38-executions-acceptantes-des-nfa-sans-epsilon">Exercice 38 : executions acceptantes des NFA sans epsilon<a class="headerlink" href="#exercice-38-executions-acceptantes-des-nfa-sans-epsilon" title="Permanent link">&para;</a></h1>
+<p>Les deux fonctions suivantes sont accessibles depuis la classe publique
+<code>ExtendedNFA</code>, sans import de mixin.</p>
+<pre><code class="language-python">from automata_extensions.fa import ExtendedNFA
+
+nfa = ExtendedNFA(
+    states={0, 1},
+    input_symbols={&quot;a&quot;, &quot;b&quot;},
+    transitions={
+        0: {&quot;a&quot;: {0, 1}, &quot;b&quot;: {0}},
+        1: {&quot;a&quot;: {1}, &quot;b&quot;: {1}},
+    },
+    initial_state=0,
+    final_states={1},
+)
+
+assert nfa.count_accepting_runs(&quot;abaa&quot;) == 3
+assert set(nfa.accepting_runs(&quot;abaa&quot;)) == {
+    (0, 1, 1, 1, 1),
+    (0, 0, 0, 1, 1),
+    (0, 0, 0, 0, 1),
+}
+assert nfa.count_accepting_runs(&quot;&quot;) == 0
+assert nfa.intersection(nfa).count_accepting_runs(&quot;abaa&quot;) == 9
+</code></pre>
+<h2 id="contrat">Contrat<a class="headerlink" href="#contrat" title="Permanent link">&para;</a></h2>
+<p>Pour un mot u de longueur n, une execution est une suite d'etats
+<code>(q0, ..., qn)</code>, commencant a l'etat initial, respectant les transitions
+et se terminant dans un etat final. Des chemins qui fusionnent gardent
+leur multiplicite. Les destinations etant des ensembles, deux copies
+identiques d'une meme transition ne sont pas representables.</p>
+<ul>
+<li><code>accepting_runs(word)</code> retourne un iterateur progressif de tuples
+  immuables. Chaque tuple contient n+1 etats. L'ordre des resultats depend
+  de l'iteration des destinations ; il n'est pas garanti comme lexical.</li>
+<li><code>count_accepting_runs(word)</code> retourne un entier Python exact, sans
+  construire les executions. Ce nombre differe du nombre de mots acceptes.</li>
+<li>Le mot vide a une execution acceptante exactement lorsque l'etat initial
+  est final. Un caractere inconnu ou une transition manquante donne zero.</li>
+<li>Chaque appel est independant et ne modifie ni l'automate ni ses caches.</li>
+<li>Un argument autre qu'une chaine leve <code>TypeError</code>. Toute vraie transition
+  epsilon leve <code>ValueError</code>, meme si elle est inaccessible. Une entree
+  <code>"": set()</code> est autorisee car elle ne represente aucune transition.
+  Les erreurs sont signalees des l'appel, avant consommation de l'iterateur.</li>
+</ul>
+<p>Ne pas eliminer automatiquement les epsilon-transitions pour compter les
+executions de l'automate d'origine : cette transformation preserve le
+langage, mais pas la multiplicite des chemins. Le present ajout ne definit
+pas le comptage des chemins epsilon, notamment en presence de cycles.</p>
+<h2 id="construction-mathematique">Construction mathematique<a class="headerlink" href="#construction-mathematique" title="Permanent link">&para;</a></h2>
+<p>Soit c_i(q) le nombre de chemins lisant les i premiers symboles du mot et
+se terminant en q. Initialement c_0(q0)=1 et c_0(q)=0 ailleurs. Pour le
+symbole a_i, on calcule :</p>
+<pre><code>c_(i+1)(r) = somme des c_i(q) pour les transitions q --a_i--&gt; r
+N(A,u) = somme des c_n(f) pour f final
+</code></pre>
+<p>Cette programmation dynamique conserve les contributions des branches qui
+fusionnent. Dans l'exemple, quitter 0 pour 1 choisit exactement une
+occurrence de a : N(A,u)=|u|_a.</p>
+<p>Pour deux NFA sans epsilon, le produit pour intersection associe un chemin
+de chaque operande. Ainsi N(A1 intersection A2,u)=N(A1,u)*N(A2,u).
+Cette identite compte les chemins, meme si un seul mot est reconnu.</p>
+<h2 id="cout-et-limites">Cout et limites<a class="headerlink" href="#cout-et-limites" title="Permanent link">&para;</a></h2>
+<p>Pour n caracteres, la validation prend O(|Q|+n). L'enumeration iterative
+visite P extensions de prefixes et produit A tuples, pour un cout total
+O(|Q|+n+P+A*(n+1)). Le nombre de prefixes et le resultat peuvent etre
+exponentiels. Sa memoire auxiliaire contient O(n+1) references ; convertir
+l'iterateur en liste stocke en plus tous les tuples.</p>
+<p>Le comptage conserve deux couches de multiplicites : O(|Q|) entiers et
+O(|Q|+n+somme E_i) operations avec additions supposees constantes, E_i
+etant le nombre de transitions pertinentes de la couche i. Les grands
+entiers ajoutent leur cout reel en bits : une addition de B bits coute
+O(B), et les comptes peuvent occuper O(|Q|*B) bits.</p>
+<p>Voir <a href="../decisions/ADR-0028-epsilon-free-accepting-runs/">ADR-0028</a> et
+<code>tests/fa/test_accepting_runs.py</code>. Cette fonctionnalite complete le TD 38 ;
+elle n'ajoute pas de conversion par derivees ni de fonctions sur GNFA/DFA.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation générée avec <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Rechercher</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ici vous pouvez chercher dans les documents. Entrez votre recherche ci-dessous.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Rechercher..." id="mkdocs-search-query" title="Tapez vos mots clés ici">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="Aucun résultat trouvé"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Raccourcis Clavier</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Touches</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Ouvrir l'aide</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Page suivante</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Page précédente</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Rechercher</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
