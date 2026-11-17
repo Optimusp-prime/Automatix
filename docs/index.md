@@ -113,5 +113,5 @@ le choix du fichier de sortie et l'utilisation d'un autre environnement.
 Les transformations comme `trim()` ou `minimize()` créent de nouveaux
 automates sans modifier l'original : vous pouvez ainsi comparer les
 résultats et enchaîner les opérations. Le
-[README du dépôt](https://github.com/Optimusp-prime/Automatix#readme)
+[recueil d'exemples](EXAMPLES.md)
 propose d'autres démonstrations pour poursuivre l'exploration.

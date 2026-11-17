@@ -16,6 +16,7 @@ theme:
   navigation_depth: 3
 nav:
   - Guides:
+      - Exemples d'utilisation: EXAMPLES.md
       - Vidéo d'exécution: VIDEO_ANIMATION.md
       - Exécutions acceptantes des NFA: ACCEPTING_RUNS.md
       - Automate par dérivées de regex: DERIVATIVE_DFA.md
