@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import shutil
 import subprocess
@@ -18,7 +19,9 @@ from automata_extensions.fa import ExtendedDFA, ExtendedGNFA, ExtendedNFA
 from automata_extensions.fa.dfa_mixins.animation import (
     AnimationMixin,
     _find_ffmpeg,
+    _find_video_executable,
 )
+from automata_extensions.fa.dfa_mixins import animation_video
 from tests.fa.test_state_elimination import _mature_dfa
 
 
@@ -56,6 +59,81 @@ def test_suffix_and_parent_validation(tmp_path: Path) -> None:
         d.export_animation_video("a", tmp_path / "x.txt")
     with pytest.raises(FileNotFoundError, match="destination directory"):
         d.export_animation_video("a", tmp_path / "missing" / "x.mp4")
+
+
+@pytest.mark.parametrize("destination", ["default", "directory", "filename"])
+def test_real_export_without_path_setup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, destination: str,
+) -> None:
+    # The notebook kernel knows its interpreter, even when its PATH was not
+    # activated by Conda. Exercise both real tools, not a mocked renderer.
+    environment = Path(sys.executable).parent
+    binaries = environment / "Library" / "bin" if sys.platform.startswith("win") else environment
+    if not all((binaries / (name + (".exe" if sys.platform.startswith("win") else ""))).is_file()
+               for name in ("dot", "ffmpeg")):
+        pytest.skip("Graphviz and FFmpeg must be installed in the Python environment")
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.chdir(tmp_path)
+    before = dict(os.environ)
+    d = _partial_dfa()
+    if destination == "default":
+        output = d.export_animation_video("a", render_fps=2)
+        expected = tmp_path / "animation.mp4"
+    elif destination == "directory":
+        folder = tmp_path / "videos with spaces"
+        folder.mkdir()
+        output = d.export_animation_video("a", folder, render_fps=2)
+        expected = folder / "animation.mp4"
+    else:
+        output = d.export_animation_video("a", tmp_path / "custom.mp4", render_fps=2)
+        expected = tmp_path / "custom.mp4"
+    assert output.resolve() == expected
+    assert expected.read_bytes()[4:8] == b"ftyp"
+    assert dict(os.environ) == before
+    assert not list(tmp_path.rglob(".automatix-video-*"))
+
+
+def test_graphviz_missing_explains_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(sys, "executable", "/no-such-environment/python")
+    with pytest.raises(RuntimeError, match="Graphviz"):
+        animation_video._layout_once("digraph { a -> b }")
+
+
+@pytest.mark.parametrize("name", ["dot", "ffmpeg"])
+def test_explicit_environment_does_not_fall_back_to_path(tmp_path: Path, name: str) -> None:
+    environment = tmp_path / "chosen env"
+    binary_dir = environment / "Library" / "bin" if sys.platform.startswith("win") else environment / "bin"
+    binary_dir.mkdir(parents=True)
+    binary = binary_dir / (name + (".exe" if sys.platform.startswith("win") else ""))
+    with patch("automata_extensions.fa.dfa_mixins.animation.shutil.which", return_value="wrong-env"):
+        assert _find_video_executable(name, environment) is None
+        binary.touch()
+        assert _find_video_executable(name, environment) == str(binary)
+
+
+def test_invalid_environment_fails_before_render(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="environment"):
+        _partial_dfa().export_animation_video("a", tmp_path / "out.mp4", env_path=tmp_path / "absent")
+    assert not (tmp_path / "out.mp4").exists()
+
+
+def test_real_export_uses_selected_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environment = Path(sys.prefix)
+    binary_dir = environment / "Library" / "bin" if sys.platform.startswith("win") else environment / "bin"
+    if not all((binary_dir / (name + (".exe" if sys.platform.startswith("win") else ""))).is_file()
+               for name in ("dot", "ffmpeg")):
+        pytest.skip("selected environment needs real Graphviz and FFmpeg")
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "other-env" / "python.exe"))
+    before = dict(os.environ)
+    output = _partial_dfa().export_animation_video(
+        "a", tmp_path / "chosen.mp4", env_path=str(environment), render_fps=2,
+    )
+    assert output.read_bytes()[4:8] == b"ftyp"
+    assert dict(os.environ) == before
 
 
 @pytest.mark.parametrize("render_fps", [0, -1, 2.5, True])

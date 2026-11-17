@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{# Keep the brand linked to the introduction, which is intentionally outside nav. #}
+{% block site_name %}
+<a class="navbar-brand" href="{{ 'index.html'|url }}" aria-label="Automatix — introduction">{{ config.site_name }}</a>
+{% endblock %}
+
+{# The guide menus provide navigation without crowding the header. #}
+{% block next_prev %}{% endblock %}

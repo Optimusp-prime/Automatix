@@ -6,6 +6,7 @@ __pycache__/
 # Build / packaging
 build/
 dist/
+site/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
@@ -36,3 +37,6 @@ Thumbs.db
 *.log
 
 reference/automata-lib/
+
+# Generated video demonstrations
+notebooks/video_fil_lecture/

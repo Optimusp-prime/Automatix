@@ -17,10 +17,11 @@ updated as part of every feature implementation.
 
 ## Current focus
 
-Current feature: TD51 — direct derivative DFA construction VERIFIED
+Current feature: M11 — environnement vidéo configurable VERIFIED (2026-11-17)
 
-Next planned feature: Submission review; professor requirements #1–#62
-and supplemental M1–M11 remain VERIFIED
+Next planned feature: B01 — transition tables, then B02 — pedagogical traces.
+See [TD backlog B01–B16](TD_BACKLOG.md) for agreed remaining work.
+Professor requirements #1–#62, M1–M11, TD38 and TD51 remain VERIFIED.
 
 Current phase: Primary and supplemental requirements verified
 
@@ -2886,26 +2887,59 @@ Les exigences primaires #1–#62 restent toutes VERIFIED.
 
 ## M11 — Export vidéo d'une exécution
 
-**Fonction M11 et refonte visuelle : VERIFIED.**
+**Fonction M11 et rendu « Fil de lecture » : VERIFIED (2026-11-16).**
+
+Correctif du 16 novembre 2026 : les courbes `plain` réservaient un espace
+pour les pointes Graphviz, mais le rendu Pillow plaçait ses propres pointes
+avant cet espace. La tangente finale est maintenant raccordée au contour
+extérieur de la destination avec environ 2 pixels de marge, pour flèches
+initiales, transitions et boucles. Géométrie calculée une fois, partagée par
+la scène et le tracé animé ; aucune modification de l'API ou de l'automate.
+Validation : 3 nouveaux cas de régression, 1393 tests réussis, mypy strict
+sur 121 fichiers et image de contrôle inspectée depuis le projet principal.
+
 L'API devient `ExtendedDFA.export_animation_video(word: str,
-filename: str | Path, *, fps: float = 1.0,
-render_fps: int = 30) -> Path`. Le paramètre `fps` garde son sens M11 de
+filename: str | Path = "animation.mp4", *, fps: float = 1.0,
+render_fps: int = 30, env_path: str | Path | None = None) -> Path`.
+Le paramètre `fps` garde son sens M11 de
 nombre d'étapes logiques par seconde ; `render_fps` contrôle seulement le
 nombre d'images MP4 par seconde. `animate()` garde son HTML autonome.
+
+L'export découvre `dot` et `ffmpeg` sur le PATH ou dans l'environnement du
+Python courant, sans configuration manuelle ni mutation globale. La destination
+par défaut est `animation.mp4` dans le dossier courant ; un dossier existant
+ou un chemin de fichier personnalisé est également accepté. Voir
+[ADR-0031](decisions/ADR-0031-video-executable-discovery.md).
+Depuis le 17 novembre 2026, `env_path` permet de fournir une racine
+d'environnement explicite. Les deux outils sont alors recherchés exclusivement
+dans ce dossier, sans repli silencieux vers le PATH ou l'environnement courant.
+Les chemins relatifs et `~` sont résolus, et le dossier est validé avant rendu.
+Le noyau Python ne change pas. La valeur `None` conserve la découverte automatique.
+Validation `env_path` : 4 cas ajoutés (recherche exclusive des deux outils,
+dossier invalide et export réel avec interpréteur courant simulé ailleurs).
+Suite complète : 1401 passed, 0 skipped ; mypy strict : 121 fichiers sans erreur.
+Validation : trois exports réels avec PATH vide (destination par défaut,
+dossier avec espaces, fichier explicite), environnement inchangé et erreur
+explicite si Graphviz manque. Suite complète : 1397 passed, 0 skipped ;
+mypy strict : 121 fichiers sans erreur ; site MkDocs construit en mode strict.
 
 La trace provient toujours de `execution_trace()` (#16) et `accepts()` ; le
 DOT vérifié (#40) conserve les vrais états et transitions. Graphviz calcule
 **une seule fois** un layout `plain` contenant centres, labels et points de
 contrôle des courbes, y compris les boucles. Le renderer privé dans
 `dfa_mixins/animation_video.py` échantillonne chaque spline selon la
-distance parcourue et y déplace un petit marqueur. Une timeline distincte
-produit une pause initiale, un mouvement puis une arrivée/pulsation pour
-chaque symbole et une pause finale. La vue 1280×720 affiche le graphe stable,
-les états finaux en double cercle, la flèche initiale, les étiquettes,
-les cartes du mot (lu/courant/à lire) et un badge textuel et pictographique
-ACCEPTÉ ou REFUSÉ. Le mot vide montre ε, puis le verdict. Un DFA partiel
-s'arrête à la première transition absente en conservant le dernier état
-réel et en indiquant le symbole en défaut, sans état puits implicite.
+distance parcourue avec interpolation quintique et tracé progressif. La
+timeline produit une pause initiale, une pulsation du symbole, un fondu
+entre états, un léger halo d'arrivée et une pause finale. Le graphe 1280×720
+conserve états finaux en double cercle, flèche initiale et étiquettes, sans
+panneau encadré ni titre. Le mot est en haut à gauche, avec traits inférieurs
+et symboles consommés à 25 % d'opacité. Le seul verdict est « Accepté » ou
+« Refusé », accompagné d'une coche/croix. Le mot vide montre ε puis le verdict.
+Un DFA partiel s'arrête à la première transition absente : dernier état réel
+conservé, symbole bloquant et suffixe non lu à 100 % avec traits rouges, sans
+état puits implicite. Un refus après lecture complète marque uniquement le
+dernier symbole en rouge à 100 %, sans qualifier sa transition d'invalide.
+Une fenêtre de 18 symboles et des ellipses prennent en charge les mots longs.
 
 Pillow, déclaré dans `pyproject.toml`, compose des images à 2× la taille
 cible avant réduction Lanczos. Aucun asset ni police n'est embarqué ; une
@@ -2919,13 +2953,23 @@ Pour n symboles, r = `render_fps`, f = `fps` et
 s = max(1, round(r/f)), la trace DFA coûte O(n) ; Graphviz effectue un seul
 layout externe. La timeline produit O(r + ns) images ; chaque composition
 copie un canevas fixe et dessine
-le mot visible, la courbe active et le marqueur. Le coût Graphviz et FFmpeg
+le mot visible, la courbe active et les états mis en évidence. Le coût Graphviz et FFmpeg
 dépend du graphe et des images. La mémoire contient une frame 2× et le
 layout ; le disque temporaire contient les PNG et le MP4. Voir la docstring
-et [ADR-0027](decisions/ADR-0027-stable-video-layout-and-timeline.md).
+et [ADR-0027](decisions/ADR-0027-stable-video-layout-and-timeline.md), complété
+par [ADR-0030](decisions/ADR-0030-fil-de-lecture-video.md).
+
+**Validation Fil de lecture (2026-11-16) :** 35 tests vidéo ciblés ; suite
+complète 1390 passed, 0 skipped ; mypy strict sur 122 fichiers, exemple compris.
+Un avertissement `audioop` préexistant. Trois MP4 réels H.264 1280×720, 30 fps,
+ont été générés et leurs résultats inspectés : acceptation (267 images), refus
+en état non final (229 images), transition absente avec suffixe (153 images).
+Relecture indépendante : aucun problème bloquant. Guide :
+[VIDEO_ANIMATION.md](VIDEO_ANIMATION.md). Démonstration reproductible :
+`python -m notebooks.video_fil_lecture`.
 
 **Validation initiale M11 :** 1295 passed, 0 skipped avant refonte.
-**Tests de refonte :** `tests/fa/test_animation_video.py` et
+**Historique de la première refonte :** `tests/fa/test_animation_video.py` et
 `tests/fa/test_animation_video_render.py` couvrent API, géométrie stable,
 timeline, boucle, mot vide, acceptation/refus, DFA partiel, immutabilité,
 FFmpeg et vrais MP4. Les 98 tests ciblés et voisins et la suite entière
