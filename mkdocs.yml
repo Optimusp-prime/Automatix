@@ -16,6 +16,7 @@ theme:
   navigation_depth: 3
 nav:
   - Guides:
+      - Éditeur web DFA (POC): WEB_POC.md
       - Exemples d'utilisation: EXAMPLES.md
       - Vidéo d'exécution: VIDEO_ANIMATION.md
       - Exécutions acceptantes des NFA: ACCEPTING_RUNS.md

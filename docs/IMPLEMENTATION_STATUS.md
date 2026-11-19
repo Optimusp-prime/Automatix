@@ -17,6 +17,118 @@ updated as part of every feature implementation.
 
 ## Current focus
 
+W02 — Web regex actions and clear-sheet: VERIFIED (2026-11-19).
+Design: [ADR-0036](decisions/ADR-0036-web-regex-actions.md). Implementation:
+`web/backend/algorithms.py`, `algorithm_worker.py`, `AlgorithmPanel.tsx`, `App.tsx`.
+POST `/api/algorithms/regex` delegates to immutable `to_regex`, `Regex.to_dfa`,
+`minimize`. Copyable result or preview and explicit undoable replacement.
+Clear retains alphabet. Final validation: **1443 Python tests passed, 4 existing
+video skips; 31 frontend tests passed**. Frontend build, strict backend typing,
+strict MkDocs build and public imports pass. `tests/web/test_algorithms.py`
+adds 21 subprocess/API cases (languages, minimized output, epsilon, empty language,
+round trip, invalid input and timeout). Browser checked conversion, preview,
+apply, validation, clear/undo, reload and mobile result at 390px.
+
+W01 — Web DFA editor and validation API: VERIFIED (2026-11-18).
+Visual follow-up (2026-11-19): VERIFIED within the documented routing limits.
+`editorPresentation.test.ts` covers grouped routes around an intermediate state,
+opposite edges, loop radii, degree sizing/centers, persistence and color contrast.
+Independent review findings fixed: Escape closes the focused transition dialog;
+restored coordinates are bounded and segment indexing has a bounded fallback.
+Browser checked these controls, dark fill/white text, automatic sizing,
+manual resize and single-step undo, obstacle movement, clear/undo and persistence.
+The dated implementation notes below record earlier checks; the final validation
+above supersedes their pending/no-tests statements. See [verification report](WEB_VERIFICATION.md).
+Automatic degree-based diameter: `displayStates` in `stateSize.ts` computes
+grouped incoming/outgoing counts in O(Q+E), adding 20px per attachment beyond
+two on the busiest side (automatic baseline capped at 240px; labels/manual
+sizes may exceed it). Initial arrow counts as incoming; loops count each side.
+Derived positions preserve stored centers. Renderer, routing, pointer hit tests,
+resizer minimum, numeric field and previews share the same effective dimensions.
+Drag/resize positions are translated back into stored coordinates. No tests or
+servers run at user request; manual verification pending.
+Obstacle routing: `routeTransitions.ts` now supplies both editor and preview.
+Groups are routed around circular states and near-parallel occupied segments;
+labels consider all routes and earlier labels. State positions and mathematical
+transitions remain unchanged. Unresolved congestion is indicated explicitly.
+See [ADR-0037](decisions/ADR-0037-editor-obstacle-routing.md). User requested no
+tests; no builds, servers or browser checks run. Manual verification pending.
+Transition label offset reduced from 18 to 11 graph units, shared by straight
+edges, curves and loops (including algorithm previews). Transparent backgrounds
+retained. No tests run at user request; visual confirmation pending.
+State background color added as optional local `color` metadata (six-digit hex),
+preserved by storage and excluded from the API. The properties color picker uses
+immutable `updateState`; `stateColor.ts` chooses black/white text by maximum
+relative-luminance contrast in O(1). Final-state inner rings use that contrast too.
+Existing drafts default to white; selection does not replace the chosen fill.
+Tests intentionally not run at the user's request; manual validation pending.
+Transitions now render as one edge per ordered (source, target) pair, including
+loops. Individual label symbols remain selectable/editable/deletable. Bending
+updates all members in one immutable history entry; stored transitions and API
+semantics remain separate. Initial arrows now include a starting dot. Grouping
+uses an O(E) map; existing drafts use the first member's curve. No tests run,
+as requested; this change is awaiting manual validation too.
+State outlines now use SVG circles instead of rounded CSS borders; resize guide
+lines are transparent. Transition labels have transparent backgrounds and are
+offset from curves. No browser, server or tests launched for this follow-up at
+the user's request. Prior VERIFIED results below precede these visual changes.
+User-requested redesign implemented: resizable readable circles and full-canvas
+floating UI. `stateSize.ts` defines shared effective dimensions; NodeResizer,
+edge/loop geometry and rope hit tests use them consistently. Local optional `size`
+metadata survives reload and is stripped from validation payloads. No Python API
+changes. Tests: `stateSize.test.ts`; all 24 frontend tests and build pass, full
+Python suite 1422 passed / 4 existing skips; public imports and strict MkDocs pass.
+Browser checks: full label, corner resizing, one-step undo/redo, reload and 390px
+layout. Independent review found no important defects. See
+[ADR-0035](decisions/ADR-0035-editor-state-size.md).
+Duplicate prevention: `transitionConflict`, `appendTransition` and
+`updateTransitionSymbol` reject repeated (source, symbol) pairs in O(E), regardless
+of target, before immutable UI commits. API validation remains authoritative;
+legacy duplicate drafts stay readable for user correction. Tests:
+`web/frontend/src/transitionConflicts.test.ts` (4 cases). Browser checks confirm
+disabled duplicate creation and rejected edits with a visible explanation.
+Canvas updated to a warm paper surface with two zoom/pan-aligned dot layers.
+19 frontend tests/build pass; full Python suite: 1422 passed, 4 existing skips.
+Transition hover points, drag-to-connect and draggable Bezier curves implemented
+in `StateNode.tsx`, `TransitionEdge.tsx`, `useRopeGesture.ts` and `geometry.ts`.
+Transient gestures cancel on empty drop, Escape, mode/document change or pointer
+loss; completed deformation commits one immutable history entry. Optional curve
+metadata is local only and excluded from HTTP payloads. Regression tests in
+`web/frontend/src/rope.test.ts`; 15 frontend tests/build and 1422 Python tests pass
+(4 existing skips). Browser checks: connection, empty drop without history,
+loop creation at 83% zoom, loop rotation, undo/redo, reload, Escape/mode controls.
+See [gesture plan](superpowers/plans/2026-11-18-rope-transitions.md) and
+[ADR-0034](decisions/ADR-0034-editor-curve-metadata.md).
+Drag rendering regression fixed: `web/frontend/src/flowNodes.ts` preserves the
+effective circle measurements across controlled React Flow updates, avoiding hidden
+states and discarded edge anchors while dragging. Regression test:
+`web/frontend/src/flowNodes.test.ts` exercises 20 updates with the real React Flow
+engine (failed before the fix, passes after). Eight frontend tests and build pass;
+browser checks cover state/loop movement, viewport panning and undo.
+Restructuring approved by the user: move the application to root `web/`;
+keep mathematical library imports and HTTP behavior unchanged.
+User-requested POC, separate from professor requirements. See
+[design](superpowers/specs/2026-11-18-dfa-web-poc.md) and
+[plan](superpowers/plans/2026-11-18-dfa-web-poc.md).
+
+- API: `POST /api/dfa/validate`, `GET /api/health`; optional FastAPI adapter
+  `web/backend/`, no mathematical mixin changes. Complete DFA only.
+- Editor: React/TypeScript/React Flow in `web/frontend/`;
+  explicit alphabet, states/transitions, loops, local storage, undo/redo.
+- Tests: `tests/web/test_api.py` (25 cases), frontend `src/model.test.ts`
+  (7 cases); full Python suite **1422 passed, 4 skipped**, frontend build and
+  strict MkDocs build passed. Public DFA/NFA/GNFA imports verified.
+- Backend strict typing passed with imported modules silenced; the existing
+  Windows-only `CREATE_NO_WINDOW` annotation in video code is outside W01.
+- Browser checks: valid/incomplete DFA, loops/opposite arcs, editing, deletion,
+  undo/redo, keyboard movement, restored local drawing, 390px layout.
+- Four existing video tests skip because dot/ffmpeg are installed system-wide,
+  not inside the interpreter environment. TestClient emits an httpx deprecation.
+- Guide and limitations: [WEB_POC](WEB_POC.md);
+  architecture: [ADR-0033](decisions/ADR-0033-root-web-application.md).
+- Remaining outside W01: simulation, file import/export, server persistence,
+  public deployment. Development dependency advisory recorded in the guide.
+
 Current feature: M11 — environnement vidéo configurable VERIFIED (2026-11-17)
 
 Next planned feature: B01 — transition tables, then B02 — pedagogical traces.

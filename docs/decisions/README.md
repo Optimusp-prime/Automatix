@@ -49,6 +49,22 @@ mark its status Superseded with a link to the replacement once accepted.
 
 ## Template
 
+Interactive curves: [ADR-0034 — Local curve metadata](ADR-0034-editor-curve-metadata.md) (Accepted).
+
+Web editor: [ADR-0032 — Optional DFA editor and API](ADR-0032-web-dfa-editor.md)
+(placement and installation superseded by
+[ADR-0033 — Separate web application](ADR-0033-root-web-application.md), Accepted).
+
+Recent editor decisions:
+
+- [ADR-0034 — Curve metadata](ADR-0034-editor-curve-metadata.md)
+- [ADR-0035 — State size](ADR-0035-editor-state-size.md)
+- [ADR-0036 — Regex actions](ADR-0036-web-regex-actions.md)
+- [ADR-0037 — Obstacle routing](ADR-0037-editor-obstacle-routing.md)
+- [ADR-0038 — Degree sizing](ADR-0038-editor-degree-sizing.md)
+
+Verification follow-up: [19 November 2026](../WEB_VERIFICATION.md).
+
 ```markdown
 # ADR-NNNN — Title
 

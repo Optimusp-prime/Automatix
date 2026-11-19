@@ -36,6 +36,12 @@ Thumbs.db
 # Logs
 *.log
 
+# Web POC
+node_modules/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
 reference/automata-lib/
 
 # Generated video demonstrations
