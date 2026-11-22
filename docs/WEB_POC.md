@@ -131,8 +131,15 @@ Un aperçu précède **Utiliser sur la feuille**, qui remplace le dessin et rest
 annulable. Modifier la source retire le résultat précédent. Les états générés
 sont nommés `q0`, `q1`, etc.
 
-Limites : 120 caractères saisis, 12 états pour la conversion en expression,
-15 secondes par calcul, sortie de 200 états / 4000 transitions ou 50000 caractères.
+La conversion en expression minimise d’abord l’automate, puis élimine les états
+dans un ordre glouton qui limite la croissance de l’expression
+(`to_regex_heuristic`, [ADR-0039](decisions/ADR-0039-heuristic-regex-elimination.md)).
+Elle accepte tout le dessin (jusqu’à 200 états). Certains langages n’ont
+cependant aucune expression compacte : au-delà d’un million de caractères, le
+résultat est refusé et sa taille est indiquée.
+
+Limites : 120 caractères saisis, 15 secondes par calcul, sortie de 200 états /
+4000 transitions ou 1 000 000 de caractères.
 Sous WSL, chaque calcul a une limite mémoire de 512 Mio dans un processus séparé.
 Relancer le serveur Python pour charger la route s’il tournait sans `--reload`.
 Ces actions ont été vérifiées par les tests et dans le navigateur le 19 novembre

@@ -17,6 +17,26 @@ updated as part of every feature implementation.
 
 ## Current focus
 
+W03 — Regex conversion of larger automata: VERIFIED (2026-11-22).
+Regression: the web worker refused DFA-to-regex above 12 states, and the #53
+lexical result exploded (14.4 million characters at 18 dense states). New
+`ExtendedDFA/ExtendedNFA.to_regex_heuristic() -> str | None`,
+`HeuristicRegexMixin` in `fa/fa_mixins/regex_heuristic.py`, uses greedy
+Delgado–Morais state elimination over the shared #49 AST. `to_regex()` (#53)
+is unchanged. The web worker uses `minimize().to_regex_heuristic()`, with no
+input state limit beyond the 200-state editor limit and a 1 000 000-character
+output cap. See [ADR-0039](decisions/ADR-0039-heuristic-regex-elimination.md),
+which supersedes the ADR-0036 limits. Tests: `tests/fa/test_regex_heuristic.py`
+(60 cases: DFA and NFA, epsilon, empty/{ε}, one state, inaccessible/sink,
+heterogeneous states, 40 random partial DFAs, immutability, chaining after
+`minimize`, 18-state regression) and 7 new cases in
+`tests/web/test_algorithms.py` (13/18/25 states, 200 states, empty/universal,
+oversized output), verified with a Thompson + subset-construction oracle.
+Full suite: **1510 passed, 4 existing video skips**. Strict mypy passes on
+the backend; the package keeps only the documented Windows-only
+`CREATE_NO_WINDOW` error. Public imports pass. No frontend change; browser
+check not run.
+
 W02 — Web regex actions and clear-sheet: VERIFIED (2026-11-19).
 Design: [ADR-0036](decisions/ADR-0036-web-regex-actions.md). Implementation:
 `web/backend/algorithms.py`, `algorithm_worker.py`, `AlgorithmPanel.tsx`, `App.tsx`.

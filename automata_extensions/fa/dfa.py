@@ -29,6 +29,7 @@ from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.fa_mixins.regex import RegexMixin
 from automata_extensions.fa.fa_mixins.regex_arden import ArdenMixin
 from automata_extensions.fa.fa_mixins.regex_optimum import RegexOptimumMixin
+from automata_extensions.fa.fa_mixins.regex_heuristic import HeuristicRegexMixin
 
 
 class ExtendedDFA(
@@ -36,7 +37,7 @@ class ExtendedDFA(
     GrammarMixin, InclusionMixin,
     IsomorphismMixin, PrefixMixin, MinimizationMixin, MyhillNerodeMixin, DeterminismMixin,
     LanguageOperationsMixin, DFAQuotientMixin, ResidualMixin, SyntacticMonoidMixin,
-    MorphismMixin, ReverseMixin,
+    MorphismMixin, ReverseMixin, HeuristicRegexMixin,
     ExtendedFA, DFA
 ):
     """Associe les mixins communs au comportement de DFA."""

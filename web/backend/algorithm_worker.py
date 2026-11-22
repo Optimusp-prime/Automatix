@@ -9,6 +9,13 @@ from automata_extensions.regex import Regex
 from web.backend.algorithms import AlgorithmRequest
 from web.backend.validation import validate_draft
 
+MAX_EXPRESSION_LENGTH = 1_000_000
+
+
+def _thousands(value: int) -> str:
+    """French digit grouping with a narrow no-break space."""
+    return f"{value:_}".replace("_", "\u202f")
+
 
 def _convert(request: AlgorithmRequest) -> dict[str, object]:
     alphabet = set(request.draft.alphabet)
@@ -21,18 +28,21 @@ def _convert(request: AlgorithmRequest) -> dict[str, object]:
         validation = validate_draft(request.draft)
         if not validation.valid:
             raise ValueError(validation.issues[0].message)
-        if len(request.draft.states) > 12:
-            raise ValueError("Conversion en expression limitée à 12 états dans ce POC.")
         paths: dict[str, dict[str, str]] = {s.id: {} for s in request.draft.states}
         for e in request.draft.transitions:
             paths[e.source][e.symbol] = e.target
         dfa = ExtendedDFA(states=set(paths), input_symbols=alphabet, transitions=paths,
                           initial_state=next(s.id for s in request.draft.states if s.initial),
                           final_states={s.id for s in request.draft.states if s.final})
-        expression = dfa.to_regex()
+        # The verbose lexical #53 trace explodes beyond a dozen states; the
+        # minimal DFA with greedy elimination keeps large automata tractable.
+        expression = dfa.minimize().to_regex_heuristic()
         text = "∅" if expression is None else expression or "ε"
-        if len(text) > 50000:
-            raise ValueError("Expression résultante trop volumineuse pour ce POC.")
+        if len(text) > MAX_EXPRESSION_LENGTH:
+            raise ValueError(
+                f"L’expression équivalente compte {_thousands(len(text))} caractères "
+                f"(maximum {_thousands(MAX_EXPRESSION_LENGTH)}). Ce langage n’admet pas "
+                "d’expression compacte avec cette méthode ; réduisez l’automate.")
         return {"kind": "regex", "expression": text}
     if request.expression == "∅":
         dfa = ExtendedDFA(states={0}, input_symbols=alphabet, initial_state=0,
@@ -72,5 +82,6 @@ if __name__ == "__main__":
     except (ValueError, AutomatonException) as error:
         output = {"error": str(error)}
     except (RecursionError, MemoryError):
-        output = {"error": "Expression trop complexe. Simplifiez-la avant de réessayer."}
+        output = {"error": "Calcul trop volumineux pour la mémoire disponible. "
+                           "Simplifiez l’expression ou l’automate avant de réessayer."}
     print(json.dumps(output))

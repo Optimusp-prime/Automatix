@@ -11,6 +11,7 @@ from automata_extensions.fa.fa_mixins.determinism import DeterminismMixin
 from automata_extensions.fa.fa_mixins.grammar_fa import GrammarMixin
 from automata_extensions.fa.fa_mixins.language_operations import LanguageOperationsMixin
 from automata_extensions.fa.fa_mixins.morphism import MorphismMixin
+from automata_extensions.fa.fa_mixins.regex_heuristic import HeuristicRegexMixin
 from automata_extensions.fa.fa_mixins.reverse import ReverseMixin
 from automata_extensions.fa.nfa_mixins.accepting_runs import AcceptingRunsMixin
 from automata_extensions.fa.nfa_mixins.determinization import DeterminizationMixin
@@ -27,7 +28,7 @@ class ExtendedNFA(
     AcceptingRunsMixin,
     NFAEquationSystemMixin, ThompsonMixin, NFAGrammarMixin, GrammarMixin, BrzozowskiMixin, DeterminismMixin, ReverseMixin, EpsilonMixin, NFASetOperationsMixin,
     DeterminizationMixin,
-    EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, MorphismMixin, ExtendedFA, NFA
+    EliminationMixin, LanguageOperationsMixin, NFAQuotientMixin, MorphismMixin, HeuristicRegexMixin, ExtendedFA, NFA
 ):
     """Associe les mixins communs au comportement de NFA."""
 

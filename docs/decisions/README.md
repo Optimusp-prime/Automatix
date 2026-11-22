@@ -62,6 +62,7 @@ Recent editor decisions:
 - [ADR-0036 — Regex actions](ADR-0036-web-regex-actions.md)
 - [ADR-0037 — Obstacle routing](ADR-0037-editor-obstacle-routing.md)
 - [ADR-0038 — Degree sizing](ADR-0038-editor-degree-sizing.md)
+- [ADR-0039 — Heuristic regex elimination](ADR-0039-heuristic-regex-elimination.md)
 
 Verification follow-up: [19 November 2026](../WEB_VERIFICATION.md).
 

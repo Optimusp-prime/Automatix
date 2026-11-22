@@ -39,8 +39,11 @@ def run_algorithm(request: AlgorithmRequest) -> dict[str, object]:
 
     Complexity
     ----------
-    Serialization is O(Q + E + expression length). Conversions can be
-    exponential; the isolated worker has a wall-clock and memory budget.
+    Serialization is O(Q + E + expression length). DFA-to-regex minimizes,
+    then eliminates states greedily (O(n**3) label operations); only the
+    rendered text can be exponential, so it is capped at 1,000,000
+    characters. Regex-to-DFA can be exponential; the isolated worker has a
+    wall-clock and memory budget.
     """
     try:
         completed = subprocess.run(
